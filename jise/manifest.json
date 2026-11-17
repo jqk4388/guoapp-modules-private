@@ -1,0 +1,15 @@
+{
+  "id": "jise",
+  "name": "基色短剧",
+  "version": "1.2.0",
+  "description": "真人剧 · AI 剧 · 账号登录 · 自动签到 · 金币解锁",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": ["gg69.tv", "www.gg69.tv", "gscnes.com", "www.gscnes.com"],
+  "capabilities": ["search", "account"],
+  "aliases": ["gg69.tv", "www.gg69.tv", "gscnes.com", "www.gscnes.com"],
+  "hostSuffixes": [".gg69.tv", "gg69.tv", ".gscnes.com", "gscnes.com"],
+  "baseUrl": "https://gg69.tv",
+  "allowEmptyCatalog": true
+}

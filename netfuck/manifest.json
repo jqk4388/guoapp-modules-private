@@ -1,0 +1,31 @@
+{
+  "id": "netfuck",
+  "name": "Netfuck",
+  "version": "0.1.0",
+  "description": "日本 JAV 男同影片，含片商与系列分类，支持搜索",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "www.netfuck.net",
+    "netfuck.net",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "capabilities": [
+    "search"
+  ],
+  "aliases": [
+    "www.netfuck.net",
+    "netfuck.net",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "hostSuffixes": [
+    ".netfuck.net",
+    "netfuck.net"
+  ],
+  "baseUrl": "https://www.netfuck.net",
+  "browserFingerprint": true,
+  "allowEmptyCatalog": true
+}

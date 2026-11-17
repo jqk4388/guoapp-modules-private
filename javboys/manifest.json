@@ -1,0 +1,26 @@
+{
+  "id": "javboys",
+  "name": "JavBoys",
+  "version": "0.1.0",
+  "description": "日本 · 韩国 · 欧美男同影片，按分类浏览与搜索",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "javboys.tv",
+    "www.javboys.tv",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "capabilities": ["search"],
+  "aliases": [
+    "javboys.tv",
+    "www.javboys.tv",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "hostSuffixes": [".javboys.tv", "javboys.tv"],
+  "baseUrl": "https://www.javboys.tv",
+  "browserFingerprint": true,
+  "allowEmptyCatalog": true
+}

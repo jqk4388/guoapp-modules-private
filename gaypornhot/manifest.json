@@ -1,0 +1,31 @@
+{
+  "id": "gaypornhot",
+  "name": "GayPornHot",
+  "version": "0.1.0",
+  "description": "欧美男同影片与片商合集，支持分类浏览和搜索",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "www.gaypornhot.com",
+    "gaypornhot.com",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "capabilities": [
+    "search"
+  ],
+  "aliases": [
+    "www.gaypornhot.com",
+    "gaypornhot.com",
+    "gayporntube.net",
+    "www.gayporntube.net"
+  ],
+  "hostSuffixes": [
+    ".gaypornhot.com",
+    "gaypornhot.com"
+  ],
+  "baseUrl": "https://www.gaypornhot.com",
+  "browserFingerprint": true,
+  "allowEmptyCatalog": true
+}
