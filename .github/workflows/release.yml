@@ -1,0 +1,92 @@
+name: 发布站源模块
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*/manifest.json"
+      - "*/main.js"
+      - "*/README.md"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/modules_release.py"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 只发布指定模块（空格分隔，留空则检查全部模块）
+        required: false
+        default: ""
+      force:
+        description: 该版本已发布过也重新发一次
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-modules
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: 打包
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/modules_release.py plan --out dist --only ${{ inputs.only }}
+
+      - name: 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TARGET: ${{ github.sha }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ ! -s dist/plan.tsv ]; then
+            echo "没有可发布的模块。" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "| 模块 | 版本 | 标签 | 结果 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          while IFS=$'\t' read -r id name version tag zip notes; do
+            [ -n "$id" ] || continue
+            if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
+              if [ "$FORCE" != "true" ]; then
+                echo "跳过 $tag：该版本已发布"
+                echo "| $name | \`$version\` | \`$tag\` | 跳过（已发布） |" >> "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
+              echo "重发 $tag：删除旧的 Release 与标签"
+              gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag
+            fi
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              gh release create "$tag" "dist/$zip" --repo "$REPO" \
+                --title "$name $version" --notes-file "$notes"
+            else
+              gh release create "$tag" "dist/$zip" --repo "$REPO" --target "$TARGET" \
+                --title "$name $version" --notes-file "$notes"
+            fi
+            echo "已发布 $tag"
+            echo "| $name | \`$version\` | \`$tag\` | 已发布 |" >> "$GITHUB_STEP_SUMMARY"
+          done < dist/plan.tsv
+
+      - name: 保留本地产物
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules-zip
+          path: |
+            dist/*.zip
+            dist/plan.json
+          if-no-files-found: ignore
+          retention-days: 14

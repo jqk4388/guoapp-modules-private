@@ -17,6 +17,15 @@
 
 `dist/` 里是打包好的 zip，只作本地产物，不入库。
 
+## 发布
+
+`.github/workflows/release.yml` 负责自动发布：`main` 上有模块改动就打包并建 Release，每个模块一条，标签为 `<标识>-v<版本>`，附件为 `<标识>-<版本>.zip`（`manifest.json`、`main.js`、`README.md` 在根目录）。
+
+- 改完模块递增该模块 `manifest.json` 的 `version` 再推，就有新 Release；版本没变则跳过，不会覆盖已发布的包。
+- 重发同一版本：手动运行该工作流，勾选 `force`；只想发某几个模块，填 `only`（空格分隔）。
+- 本地打包走同一套校验和打包逻辑：`python .github/scripts/modules_release.py plan`，产物在 `dist/`。
+- 安装包地址：`https://github.com/jqk4388/guoapp-modules-private/releases/download/<标识>-v<版本>/<标识>-<版本>.zip`，私有仓库下载需要登录。
+
 ## 约定
 
 - 模块标识（`manifest.json` 的 `id`）必须与目录同名，发布后不能改：剧集和分集的 ID 会写进用户的追剧、记录和下载。
