@@ -2,7 +2,8 @@
 """站源模块打包与发布规划。
 
 本地与 CI 共用：把每个模块目录打成 `<标识>-<版本>.zip`（manifest.json 与 main.js 在根目录），
-校验不过的模块直接报错退出，不改动任何已发布的 Release。
+校验不过的模块直接报错退出，不改动任何已发布的 Release。打包不压缩且时间戳固定，
+同一份源码在任何机器上产出的 zip 字节一致，哈希可与 Release 说明里的对得上。
 
 用法：
     python3 .github/scripts/modules_release.py plan
@@ -92,10 +93,10 @@ def read_module(directory: Path) -> dict:
 def build_package(module: dict, out_dir: Path) -> tuple[str, str]:
     zip_name = f"{module['id']}-{module['version']}.zip"
     target = out_dir / zip_name
-    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as archive:
         for name, data in module["files"]:
             info = zipfile.ZipInfo(name, ZIP_TIMESTAMP)
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.compress_type = zipfile.ZIP_STORED
             info.external_attr = 0o644 << 16
             archive.writestr(info, data)
     return zip_name, digest(target.read_bytes())
