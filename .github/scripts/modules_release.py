@@ -96,6 +96,7 @@ def build_package(module: dict, out_dir: Path) -> tuple[str, str]:
     with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as archive:
         for name, data in module["files"]:
             info = zipfile.ZipInfo(name, ZIP_TIMESTAMP)
+            info.create_system = 3
             info.compress_type = zipfile.ZIP_STORED
             info.external_attr = 0o644 << 16
             archive.writestr(info, data)
