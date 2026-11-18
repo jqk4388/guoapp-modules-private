@@ -1,0 +1,28 @@
+{
+  "id": "fullboys",
+  "name": "FullBoys",
+  "version": "0.1.0",
+  "description": "亚洲男同影片，标签分类、搜索与关注度排序",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "fullboys.com",
+    "www.fullboys.com",
+    "fullboys.b-cdn.net",
+    "*.b-cdn.net",
+    "*.r2.dev"
+  ],
+  "capabilities": [
+    "search"
+  ],
+  "aliases": [
+    "fullboys.com",
+    "www.fullboys.com"
+  ],
+  "hostSuffixes": [
+    ".fullboys.com",
+    "fullboys.com"
+  ],
+  "baseUrl": "https://fullboys.com"
+}

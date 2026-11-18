@@ -10,6 +10,7 @@
 | `gaypornhot` | GayPornHot | 欧美男同影片与片商合集 | gayporntube 嵌入页取 mp4 |
 | `netfuck` | Netfuck | 日本 JAV 男同影片，十余万条目 | gayporntube 嵌入页取 mp4 |
 | `horlover` | 4horLover | 日本男同影片合集 | 浏览器验证广告短链后取 MixDrop 直链 |
+| `fullboys` | FullBoys | 亚洲男同影片，63 个标签分类 | 取 jwplayer 页里的 R2 直链 |
 
 ## 安装
 
