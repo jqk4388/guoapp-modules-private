@@ -345,21 +345,28 @@ function apiData(path) {
   return data;
 }
 
-function dramaList(query) {
-  const data = apiData("/dramas" + (query ? "?" + query : ""));
+function listOf(data) {
   if (Array.isArray(data)) {
     return data;
   }
-  if (data && Array.isArray(data.items)) {
-    return data.items;
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+  for (const key of ["items", "list", "records", "rows", "data"]) {
+    if (Array.isArray(data[key])) {
+      return data[key];
+    }
   }
   return [];
 }
 
+function dramaList(query) {
+  return listOf(apiData("/dramas" + (query ? "?" + query : "")));
+}
+
 function dramaTags() {
   const tags = [];
-  const data = apiData("/dramas/tags");
-  const entries = Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : [];
+  const entries = listOf(apiData("/dramas/tags"));
   for (const entry of entries) {
     const id = parseInt(entry && entry.id, 10);
     const name = truncate(entry && entry.name, 24);
@@ -368,6 +375,15 @@ function dramaTags() {
     }
   }
   return tags;
+}
+
+function categoryTags() {
+  try {
+    return dramaTags();
+  } catch (error) {
+    host.log("基色短剧读取分类标签失败：" + (error && error.message ? error.message : error));
+    return [];
+  }
 }
 
 function sortValue(drama, field) {
@@ -442,6 +458,7 @@ function dramaOf(item) {
     categoryName: typeNameOf(item),
     remark: total > 0 ? "共 " + total + " 集" : "",
     badge: item.isHot ? "热门" : "",
+    sourceUrl: origin() + "/watch/" + sourceId,
   };
   if (tags.length > 0) {
     drama.tags = tags;
@@ -464,7 +481,73 @@ function dramaOf(item) {
 function pageOf(list, page) {
   const start = (page - 1) * pageSize;
   const items = list.slice(start, start + pageSize).map(dramaOf);
-  return { items, hasMore: start + pageSize < list.length };
+  return { items, hasMore: items.length >= pageSize };
+}
+
+function coverPath(raw) {
+  const text = String(raw === undefined || raw === null ? "" : raw).trim();
+  if (text === "") {
+    return "";
+  }
+  if (/^https?:\/\//i.test(text)) {
+    return text;
+  }
+  return absoluteAddress(text, mediaBaseUrl + "/") || absoluteAddress(text, baseUrls[0] + "/");
+}
+
+function episodeCoverOf(episodes) {
+  for (const episode of episodes || []) {
+    const address = coverPath(episode && episode.coverUrl);
+    if (address !== "") {
+      return address;
+    }
+  }
+  return "";
+}
+
+function coverOf(data) {
+  return coverPath(data && (data.coverUrl || data.carouselImageUrl)) || episodeCoverOf(episodesOf(data));
+}
+
+function introFallback(drama, count) {
+  const parts = [];
+  if (drama.categoryName) {
+    parts.push(drama.categoryName);
+  }
+  if (count > 0) {
+    parts.push("共 " + count + " 集");
+  }
+  if (drama.views) {
+    parts.push("播放 " + drama.views);
+  }
+  if (drama.onlineDate) {
+    parts.push(drama.onlineDate + " 上线");
+  }
+  return parts.join(" · ");
+}
+
+function fillCovers(items, limit) {
+  let filled = 0;
+  for (const item of items) {
+    if (filled >= limit) {
+      break;
+    }
+    if (item.cover !== "") {
+      continue;
+    }
+    filled += 1;
+    let data = null;
+    try {
+      data = apiData("/dramas/" + item.sourceId);
+    } catch (error) {
+      continue;
+    }
+    const address = coverOf(data);
+    if (address !== "") {
+      item.cover = address;
+      item.coverUrl = address;
+    }
+  }
 }
 
 function episodesOf(data) {
@@ -501,14 +584,24 @@ function detailOf(sourceId) {
   if (!numericIdPattern.test(sourceId)) {
     throw new Error("基色短剧剧集 ID 无效");
   }
-  const data = apiData("/dramas/" + sourceId);
+  let data = null;
+  try {
+    data = apiData("/dramas/" + sourceId);
+  } catch (error) {
+    host.log("基色短剧读取剧集 " + sourceId + " 失败：" + (error && error.message ? error.message : error));
+    throw error;
+  }
   if (!data || typeof data !== "object" || String(data.id) !== sourceId) {
     throw new Error("基色短剧没有返回这部剧的信息");
   }
   const drama = dramaOf(data);
+  if (drama.cover === "") {
+    drama.cover = coverOf(data);
+    drama.coverUrl = drama.cover;
+  }
   const description = truncate(data.intro || data.shareDesc || "", 12000);
-  drama.desc = description;
-  drama.intro = description;
+  drama.desc = description !== "" ? description : introFallback(drama, episodesOf(data).length);
+  drama.intro = drama.desc;
   const chapters = [];
   for (const episode of episodesOf(data)) {
     const chapter = chapterOf(episode, sourceId, chapters.length);
@@ -516,12 +609,10 @@ function detailOf(sourceId) {
       chapters.push(chapter);
     }
   }
-  if (chapters.length === 0) {
-    throw new Error("基色短剧该剧暂无可播放分集");
-  }
+  host.log("基色短剧剧集 " + sourceId + " 分集 " + episodesOf(data).length + " 条，可用 " + chapters.length + " 条");
   drama.totalEpisode = chapters.length;
-  drama.episodeCount = chapters.length;
-  drama.remark = "共 " + chapters.length + " 集";
+  drama.episodeCount = Math.max(chapters.length, parseInt(data.totalEpisodes, 10) || 0);
+  drama.remark = chapters.length > 0 ? "共 " + chapters.length + " 集" : "暂无可播放分集";
   return { drama, chapters };
 }
 
@@ -655,9 +746,8 @@ function unlockEpisode(sourceId, episodeId) {
   throw new Error(unlockReason(detail, episodeId));
 }
 
-module.exports = {
+  module.exports = {
   categories() {
-    checkIn();
     const categories = [
       { id: "", name: "最新更新" },
       { id: "live-action", name: "真人剧" },
@@ -666,14 +756,17 @@ module.exports = {
       { id: "rank-month", name: "月排行" },
       { id: "rank-week", name: "周排行" },
     ];
-    for (const entry of dramaTags()) {
+    for (const entry of categoryTags()) {
       categories.push({ id: "tag:" + entry.id, name: entry.name });
     }
     return categories;
   },
 
+  validCategory(category) {
+    return categoryQuery(category) !== null;
+  },
+
   catalogPage(page, category) {
-    checkIn();
     if (!(page >= 1) || page > 1000) {
       return { items: [], hasMore: false };
     }
@@ -682,7 +775,9 @@ module.exports = {
       throw new Error("基色短剧没有分类 " + category);
     }
     const list = sortedDramas(dramaList(query), category);
-    return pageOf(list, page);
+    const result = pageOf(list, page);
+    fillCovers(result.items, 4);
+    return result;
   },
 
   search(page, query) {
@@ -698,11 +793,12 @@ module.exports = {
       }
       return tagsOf(item).some((name) => name.indexOf(keyword) >= 0);
     });
-    return pageOf(sortedDramas(matched.length > 0 ? matched : list, ""), page);
+    const result = pageOf(sortedDramas(matched.length > 0 ? matched : list, ""), page);
+    fillCovers(result.items, 4);
+    return result;
   },
 
   detail(sourceId) {
-    checkIn();
     return detailOf(sourceId);
   },
 

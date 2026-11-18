@@ -4,6 +4,30 @@ const embedReferer = "https://www.gayporntube.net/";
 const embedPagePrefix = "https://www.gayporntube.net/embed/";
 const embedScheme = "gaypornhot-embed://";
 const slugPattern = /^[A-Za-z0-9._~%-]{1,300}$/;
+const declaredHosts = [
+  "gaypornhot.com",
+  "www.gaypornhot.com",
+  "gayporntube.net",
+  "www.gayporntube.net",
+  "*.gayporntube.net",
+  "gayporntube.com",
+  "www.gayporntube.com",
+  "*.gayporntube.com",
+  "playmogo.com",
+  "www.playmogo.com",
+  "dood.to",
+  "dood.watch",
+  "doodstream.com",
+  "ds2play.com",
+  "*.doodcdn.io",
+  "*.cloudatacdn.com",
+  "1069.website",
+  "www.1069.website",
+  "hypeboy.link",
+  "www.hypeboy.link",
+  "voe.sx",
+  "*.voe.sx",
+];
 const categoriesList = [
   { id: "", name: "最新" },
   { id: "gay-porn-movies", name: "影片" },
@@ -20,6 +44,9 @@ const categoriesList = [
   { id: "cockyboys", name: "CockyBoys" },
 ];
 const ignoredCardClasses = ["video-categories", "video-tags", "videopost-inner"];
+const signaturePrefix = "page-signature:";
+const gridPageSize = 6;
+const pageLimit = 2000;
 
 function classTokens(node) {
   const value = node && node.attrs ? node.attrs.class : "";
@@ -132,6 +159,10 @@ function pagePath(path, page) {
   return path + "page/" + page + "/";
 }
 
+function alternatePagePath(path, page) {
+  return path + (path.indexOf("?") >= 0 ? "&" : "?") + "paged=" + page;
+}
+
 function fetchPage(path) {
   const url = site + path;
   const response = host.fetchText({ url, referer: site + "/" });
@@ -146,13 +177,46 @@ function searchPath(keyword, page) {
   return "/page/" + page + "/?s=" + encoded;
 }
 
-function hasNextPage(body, page) {
+function paginationHint(body, page) {
+  const text = String(body);
   const next = page + 1;
-  return (
-    String(body).indexOf("/page/" + next + "/") >= 0 ||
-    String(body).indexOf("paged=" + next) >= 0 ||
-    String(body).indexOf("paged%3D" + next) >= 0
-  );
+  const hints = ["/page/" + next + "/", "/page/" + next + '"', "/page/" + next + "'", "paged=" + next, "page=" + next];
+  for (const hint of hints) {
+    if (text.indexOf(hint) >= 0) {
+      return true;
+    }
+  }
+  return /rel=["']next["']/i.test(text);
+}
+
+function pageSignature(items) {
+  const parts = [];
+  for (const item of items.slice(0, 5)) {
+    parts.push(item.sourceId);
+  }
+  return parts.join("|");
+}
+
+function signatureKey(category) {
+  return signaturePrefix + (category === "" ? "latest" : category);
+}
+
+function readPageSignature(category) {
+  try {
+    const raw = host.loadState(signatureKey(category));
+    const parsed = raw === "" ? null : JSON.parse(raw);
+    return parsed && typeof parsed.page === "number" && typeof parsed.signature === "string" ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writePageSignature(category, page, signature) {
+  try {
+    host.saveState(signatureKey(category), JSON.stringify({ page, signature }));
+  } catch (error) {
+    return;
+  }
 }
 
 function siteHost() {
@@ -306,6 +370,7 @@ function parseCards(body) {
       coverUrl: cover,
       channelName: siteName,
       categoryName: names.length > 0 ? names[0] : "",
+      sourceUrl: post.url,
     };
     if (names.length > 0) {
       drama.tags = names.concat(tags).filter((entry, index, all) => all.indexOf(entry) === index).slice(0, 8);
@@ -324,32 +389,380 @@ function parseCards(body) {
   return items;
 }
 
-function embedIdOf(body) {
-  const match = String(body).match(/gayporntube\.net\/embed\/([0-9]{1,12})/i);
-  return match ? match[1] : "";
+function normalizeText(text) {
+  return String(text === undefined || text === null ? "" : text)
+    .replace(/\\\//g, "/")
+    .replace(/\\u0026/gi, "&")
+    .replace(/&amp;/g, "&");
 }
 
-function embedAddress(embedId) {
-  return embedPagePrefix + embedId;
+function absoluteUrl(raw, base) {
+  const value = clean(raw);
+  if (value === "" || /^data:/i.test(value) || /^javascript:/i.test(value) || value.indexOf("about:") === 0) {
+    return "";
+  }
+  try {
+    return host.resolveUrl(base, value);
+  } catch (error) {
+    return "";
+  }
 }
 
-function mediaAddress(body) {
-  const pattern = /https?:\/\/[^\s"'\\<>]*gayporntube\.net\/get_file\/[^\s"'\\<>]+/gi;
-  let match;
-  let fallback = "";
-  while ((match = pattern.exec(String(body))) !== null) {
-    const candidate = match[0].replace(/&amp;/g, "&").replace(/\\+$/, "");
-    if (candidate.indexOf(".mp4") < 0) {
+function isMediaAddress(address) {
+  const lower = String(address).toLowerCase();
+  if (!/^https?:\/\//.test(lower)) {
+    return false;
+  }
+  return /\.(mp4|m3u8|webm|mpd)(?=[/?#]|$)/.test(lower) || /\/get_file\//.test(lower);
+}
+
+function declaredHost(address) {
+  let parsed;
+  try {
+    parsed = host.parseUrl(address);
+  } catch (error) {
+    return false;
+  }
+  const name = String(parsed.hostname || "").toLowerCase();
+  for (const pattern of declaredHosts) {
+    if (pattern.indexOf("*.") === 0) {
+      if (name === pattern.slice(2) || name.slice(-(pattern.length - 1)) === pattern.slice(1)) {
+        return true;
+      }
       continue;
     }
-    if (fallback === "") {
-      fallback = candidate;
-    }
-    if (candidate.indexOf(".mp4/") >= 0 || /\.mp4(\?|$)/.test(candidate)) {
-      return candidate;
+    if (name === pattern) {
+      return true;
     }
   }
-  return fallback;
+  return false;
+}
+
+function hostNameOf(address) {
+  try {
+    return String(host.parseUrl(address).hostname || "").toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+function mediaCandidates(body) {
+  const candidates = [];
+  const push = (address) => {
+    if (address !== "" && candidates.indexOf(address) < 0) {
+      candidates.push(address);
+    }
+  };
+  const doc = documentOf(body);
+  const nodes = collect(doc, (child) => ["video", "source", "iframe", "embed", "a"].indexOf(String(child.tag || "").toLowerCase()) >= 0);
+  for (const node of nodes) {
+    for (const name of ["src", "data-src", "data-video", "data-url", "data-file", "href"]) {
+      push(absoluteUrl(attribute(node, name), site + "/"));
+    }
+  }
+  const pattern = /https?:\/\/[^\s"'\\<>()]+/gi;
+  const text = normalizeText(body);
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const address = match[0].replace(/[\\.,;]+$/, "");
+    if (isMediaAddress(address)) {
+      push(address);
+    }
+  }
+  return candidates;
+}
+
+function mediaIn(body) {
+  for (const address of mediaCandidates(body)) {
+    if (isMediaAddress(address) && declaredHost(address)) {
+      return address;
+    }
+  }
+  return "";
+}
+
+function keyedMedia(body) {
+  const text = normalizeText(body);
+  const patterns = [
+    /video_url\s*:\s*['"]([^'"]+)['"]/i,
+    /["']file["']\s*:\s*["']([^"']+)["']/i,
+    /sources\s*:\s*\[\s*\{[^}]*["'](?:file|src)["']\s*:\s*["']([^"']+)["']/i,
+    /https?:\/\/[^\s"'\\<>()]*\.m3u8[^\s"'\\<>()]*/i,
+    /https?:\/\/[^\s"'\\<>()]*\.mp4[^\s"'\\<>()]*/i,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (!match) {
+      continue;
+    }
+    const raw = match.length > 1 && match[1] ? match[1] : match[0];
+    const address = absoluteMedia(raw);
+    if (address !== "" && isMediaAddress(address) && declaredHost(address)) {
+      return address;
+    }
+  }
+  return "";
+}
+
+function absoluteMedia(raw) {
+  let address = normalizeText(raw).trim();
+  if (address.indexOf("//") === 0) {
+    address = "https:" + address;
+  }
+  return /^https?:\/\//i.test(address) ? address : "";
+}
+
+function originOf(address) {
+  try {
+    const parsed = host.parseUrl(address);
+    return parsed.scheme + "://" + parsed.host;
+  } catch (error) {
+    return "";
+  }
+}
+
+function errorText(error) {
+  const message = error && error.message ? String(error.message) : String(error);
+  return message.length > 160 ? message.slice(0, 160) : message;
+}
+
+function playerIn(body) {
+  const doc = documentOf(body);
+  const frames = collect(doc, (child) => ["iframe", "embed"].indexOf(String(child.tag || "").toLowerCase()) >= 0, 8);
+  for (const frame of frames) {
+    for (const name of ["src", "data-src", "data-iframe", "data-player", "data-url"]) {
+      const address = absoluteUrl(attribute(frame, name), site + "/");
+      if (address !== "" && !isMediaAddress(address)) {
+        return address;
+      }
+    }
+  }
+  const match = /https?:\/\/(?:www\.)?gayporntube\.(?:net|com)\/embed\/[0-9]{1,15}[^\s"'\\<>()]*/i.exec(normalizeText(body));
+  return match ? match[0].replace(/[\\.,;]+$/, "") : "";
+}
+
+const doodHosts = ["playmogo.com", "dood.to", "dood.watch", "doodstream.com", "dood.so", "ds2play.com"];
+
+function isPlayerContainer(node) {
+  const tokens = classTokens(node);
+  return tokens.indexOf("video-player") >= 0 || tokens.indexOf("player") >= 0;
+}
+
+function playerLabel(address) {
+  const name = hostNameOf(address);
+  if (/gayporntube\./i.test(name)) {
+    return "嵌入";
+  }
+  if (/playmogo|dood|ds2play|1069jp|hgcloud|luluvdo/i.test(name)) {
+    return "DOOD";
+  }
+  if (/1069\.website|byse/i.test(name)) {
+    return "BYSE";
+  }
+  if (/hypeboy|voe\./i.test(name)) {
+    return "VOE";
+  }
+  return name;
+}
+
+function playerRank(address) {
+  const label = playerLabel(address);
+  if (label === "DOOD") {
+    return 0;
+  }
+  if (label === "嵌入") {
+    return 1;
+  }
+  return 2;
+}
+
+function playerEntries(body) {
+  const found = [];
+  const add = (raw) => {
+    const address = absoluteUrl(raw, site + "/");
+    if (address === "" || isMediaAddress(address) || found.indexOf(address) >= 0) {
+      return;
+    }
+    found.push(address);
+  };
+  const doc = documentOf(body);
+  for (const node of collect(doc, (child) => ["iframe", "embed"].indexOf(String(child.tag || "").toLowerCase()) >= 0)) {
+    for (const name of ["src", "data-src"]) {
+      add(attribute(node, name));
+    }
+  }
+  for (const node of collect(doc, (child) => isPlayerContainer(child) && attribute(child, "data-src") !== "")) {
+    for (const name of ["data-src", "data-iframe", "data-player", "data-url"]) {
+      add(attribute(node, name));
+    }
+  }
+  found.sort((left, right) => playerRank(left) - playerRank(right));
+  return found;
+}
+
+function isDoodHost(address) {
+  const name = hostNameOf(address);
+  for (const pattern of doodHosts) {
+    if (name === pattern || name.slice(-(pattern.length + 1)) === "." + pattern) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const browserHeaders = {
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+};
+
+function fetchPlayerPage(address, referer) {
+  const headers = Object.assign({}, browserHeaders);
+  if (referer !== "") {
+    headers.referer = referer;
+  }
+  const response = host.fetch({
+    url: address,
+    method: "GET",
+    headers,
+    followRedirects: true,
+    anyStatus: true,
+    timeoutMs: 20000,
+    limit: 4 << 20,
+  });
+  const finalUrl = address;
+  return {
+    status: parseInt(response && response.status, 10) || 0,
+    location: String((response && response.headers && (response.headers.location || response.headers.Location)) || ""),
+    body: String((response && response.body) || ""),
+    url: finalUrl,
+  };
+}
+
+function randomToken(length) {
+  const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let text = "";
+  for (let index = 0; index < length; index++) {
+    text += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  }
+  return text;
+}
+
+function doodMedia(address, body) {
+  const pass = /\/pass_md5\/[^'"\s]+/.exec(normalizeText(body));
+  if (!pass) {
+    return "";
+  }
+  const origin = originOf(address);
+  if (origin === "") {
+    return "";
+  }
+  let base = "";
+  try {
+    base = String(fetchPlayerPage(origin + pass[0], address).body).trim();
+  } catch (error) {
+    return "";
+  }
+  if (!/^https?:\/\//.test(base)) {
+    return "";
+  }
+  const token = pass[0].slice(pass[0].lastIndexOf("/") + 1);
+  return base + randomToken(10) + "?token=" + token + "&expiry=" + Date.now();
+}
+
+function redirectTarget(body, base) {
+  const text = normalizeText(body);
+  const meta = /http-equiv=["']?refresh["']?[^>]*content=["'][^"']*url=([^"'>\s]+)/i.exec(text);
+  if (meta) {
+    return absoluteUrl(meta[1], base);
+  }
+  const assigned = /(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i.exec(text);
+  if (assigned) {
+    return absoluteUrl(assigned[1], base);
+  }
+  const replaced = /location\.replace\(\s*["']([^"']+)["']/i.exec(text);
+  return replaced ? absoluteUrl(replaced[1], base) : "";
+}
+
+function packedMedia(body) {
+  const packed = /eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\('([\s\S]*?)',([0-9]+),([0-9]+),'([\s\S]*?)'\.split\('\|'\)/;
+  const match = packed.exec(String(body));
+  if (!match) {
+    return "";
+  }
+  const base = parseInt(match[2], 10) || 62;
+  const count = parseInt(match[3], 10) || 0;
+  const words = match[4].split("|");
+  const token = (value) => {
+    let text = "";
+    let number = value;
+    while (true) {
+      const digit = number % base;
+      text = (digit > 35 ? String.fromCharCode(digit + 29) : digit.toString(36)) + text;
+      number = Math.floor(number / base);
+      if (number <= 0) {
+        break;
+      }
+    }
+    return text;
+  };
+  let source = match[1];
+  for (let index = count - 1; index >= 0; index--) {
+    if (words[index]) {
+      const replacement = words[index];
+      source = source.replace(new RegExp("\\b" + token(index) + "\\b", "g"), () => replacement);
+    }
+  }
+  return keyedMedia(source);
+}
+
+function resolvePlayer(address, referer, depth) {
+  if (address === "" || depth > 3) {
+    return { media: "", referer: "", reason: "没有可用的播放器地址" };
+  }
+  if (isMediaAddress(address)) {
+    return { media: address, referer, reason: "" };
+  }
+  const name = hostNameOf(address);
+  let page = null;
+  try {
+    page = fetchPlayerPage(address, referer);
+  } catch (error) {
+    return { media: "", referer: "", reason: name + " 打不开（" + errorText(error) + "）" };
+  }
+  const body = page.body;
+  if (body === "") {
+    return { media: "", referer: "", reason: name + " 返回了空页面（状态 " + page.status + "）" };
+  }
+  const pass = /\/pass_md5\//.test(normalizeText(body));
+  if (pass || isDoodHost(address)) {
+    const media = doodMedia(address, body);
+    if (media !== "") {
+      return { media, referer: address, reason: "" };
+    }
+    if (pass) {
+      return { media: "", referer: "", reason: name + " 的 pass_md5 没有取到直链" };
+    }
+  }
+  const media = keyedMedia(body) || packedMedia(body) || mediaIn(body);
+  if (media !== "") {
+    return { media, referer: address, reason: "" };
+  }
+  if (/not allowed to watch/i.test(body)) {
+    return { media: "", referer: "", reason: name + " 拒绝了这个请求（嵌入白名单），换一条线路" };
+  }
+  const next = page.location !== "" ? absoluteUrl(page.location, address) : "";
+  if (next !== "" && next !== address) {
+    return resolvePlayer(next, address, depth + 1);
+  }
+  const redirected = redirectTarget(body, address);
+  if (redirected !== "" && redirected !== address) {
+    return resolvePlayer(redirected, address, depth + 1);
+  }
+  const frame = playerIn(body);
+  if (frame !== "" && frame !== address) {
+    return resolvePlayer(frame, address, depth + 1);
+  }
+  return { media: "", referer: "", reason: name + " 的页面里没有播放地址" };
 }
 
 function metaContent(body, property) {
@@ -439,8 +852,8 @@ function detailPage(slug) {
       tags: categories.concat(tags).filter((entry, index, all) => all.indexOf(entry) === index).slice(0, 12),
       remark: duration,
       duration,
+      sourceUrl: address,
     },
-    embedId: embedIdOf(body),
   };
 }
 
@@ -454,18 +867,20 @@ function dramaSourceId(task) {
   return slugPattern.test(slug) ? slug : "";
 }
 
-function chapterEmbedId(task) {
-  const chapter = (task && task.chapter) || {};
-  const videoUrl = typeof chapter.videoUrl === "string" ? chapter.videoUrl : "";
+function playerAddressOf(chapter) {
+  const videoUrl = chapter && typeof chapter.videoUrl === "string" ? chapter.videoUrl : "";
   if (videoUrl.indexOf(embedScheme) === 0) {
-    const value = videoUrl.slice(embedScheme.length).replace(/[^0-9]/g, "");
-    if (value !== "") {
+    const value = videoUrl.slice(embedScheme.length).trim();
+    if (/^https?:\/\//i.test(value)) {
       return value;
     }
+    if (/^[0-9]{1,15}$/.test(value)) {
+      return embedPagePrefix + value;
+    }
+    return "";
   }
-  const pageUrl = typeof chapter.pageUrl === "string" ? chapter.pageUrl : "";
-  const fromPage = /gayporntube\.net\/embed\/([0-9]{1,12})/i.exec(pageUrl);
-  return fromPage ? fromPage[1] : "";
+  const pageUrl = chapter && typeof chapter.pageUrl === "string" ? chapter.pageUrl : "";
+  return /^https?:\/\//i.test(pageUrl) ? pageUrl : "";
 }
 
 module.exports = {
@@ -482,12 +897,32 @@ module.exports = {
     if (path === "") {
       throw new Error(siteName + "没有分类 " + category);
     }
-    if (!(page >= 1) || page > 5000) {
+    if (!(page >= 1) || page > pageLimit) {
       return { items: [], hasMore: false };
     }
-    const response = fetchPage(pagePath(path, page));
-    const items = parseCards(response.body);
-    return { items, hasMore: items.length > 0 && hasNextPage(response.body, page) };
+    const previous = readPageSignature(category);
+    let response = fetchPage(pagePath(path, page));
+    let items = parseCards(response.body);
+    if (page > 1) {
+      const current = pageSignature(items);
+      const stale =
+        items.length === 0 || (previous !== null && previous.page === page - 1 && previous.signature === current);
+      if (stale) {
+        const fallback = fetchPage(alternatePagePath(path, page));
+        const other = parseCards(fallback.body);
+        if (other.length > 0 && pageSignature(other) !== current) {
+          response = fallback;
+          items = other;
+        }
+      }
+    }
+    const signature = pageSignature(items);
+    const repeated = previous !== null && previous.page === page - 1 && previous.signature === signature;
+    writePageSignature(category, page, signature);
+    return {
+      items,
+      hasMore: items.length > 0 && !repeated && (paginationHint(response.body, page) || items.length >= gridPageSize),
+    };
   },
 
   search(page, query) {
@@ -497,7 +932,10 @@ module.exports = {
     }
     const response = fetchPage(searchPath(keyword, page));
     const items = parseCards(response.body);
-    return { items, hasMore: items.length > 0 && hasNextPage(response.body, page) };
+    return {
+      items,
+      hasMore: items.length > 0 && (paginationHint(response.body, page) || items.length >= gridPageSize),
+    };
   },
 
   detail(sourceId) {
@@ -506,19 +944,33 @@ module.exports = {
       throw new Error(siteName + "影片地址无效");
     }
     const page = detailPage(slug);
-    const title = page.drama.title;
-    const chapter = {
-      id: host.chapterId(slug, "1"),
-      source: host.source,
-      title: truncate(title, 128),
-      currentEpisode: 1,
-      pageUrl: site + "/" + slug + "/",
-      referer: site + "/",
-      videoUrl: page.embedId !== "" ? embedScheme + page.embedId : "",
-    };
-    page.drama.totalEpisode = 1;
-    page.drama.episodeCount = 1;
-    return { drama: page.drama, chapters: [chapter] };
+    const entries = playerEntries(page.body);
+    const chapters = [];
+    for (const address of entries) {
+      chapters.push({
+        id: host.chapterId(slug, String(chapters.length + 1)),
+        source: host.source,
+        title: "线路 " + (chapters.length + 1) + " · " + playerLabel(address),
+        currentEpisode: chapters.length + 1,
+        pageUrl: site + "/" + slug + "/",
+        referer: site + "/",
+        videoUrl: embedScheme + address,
+      });
+    }
+    if (chapters.length === 0) {
+      chapters.push({
+        id: host.chapterId(slug, "1"),
+        source: host.source,
+        title: truncate(page.drama.title, 128),
+        currentEpisode: 1,
+        pageUrl: site + "/" + slug + "/",
+        referer: site + "/",
+        videoUrl: "",
+      });
+    }
+    page.drama.totalEpisode = chapters.length;
+    page.drama.episodeCount = chapters.length;
+    return { drama: page.drama, chapters };
   },
 
   resolveMedia(task) {
@@ -526,22 +978,34 @@ module.exports = {
     if (slug === "") {
       throw new Error(siteName + "播放信息无效，请刷新详情后重试");
     }
-    let embedId = chapterEmbedId(task);
-    if (embedId === "") {
-      embedId = embedIdOf(detailPage(slug).body);
-    }
-    if (embedId === "") {
-      throw new Error(siteName + "没有找到播放地址");
-    }
-    const response = host.fetchText({ url: embedAddress(embedId), referer: site + "/" });
-    const body = response.body;
-    const address = mediaAddress(body);
-    if (address === "") {
-      if (/not allowed to watch/i.test(body)) {
-        throw new Error(siteName + "该影片的来源站拒绝了请求");
+    const reasons = [];
+    const stored = playerAddressOf((task && task.chapter) || {});
+    if (stored !== "") {
+      const result = resolvePlayer(stored, site + "/", 0);
+      if (result.media !== "") {
+        return host.prepareWebMedia({ url: result.media, referer: result.referer || site + "/" }, siteName);
       }
-      throw new Error(siteName + "播放地址解析失败，请稍后重试");
+      if (result.reason !== "") {
+        reasons.push(result.reason);
+      }
     }
-    return host.prepareWebMedia({ url: address, referer: embedReferer }, siteName);
+    let body = "";
+    try {
+      body = detailPage(slug).body;
+    } catch (error) {
+      reasons.push("详情页打不开（" + errorText(error) + "）");
+    }
+    for (const address of playerEntries(body)) {
+      const result = resolvePlayer(address, site + "/", 0);
+      if (result.media !== "") {
+        return host.prepareWebMedia({ url: result.media, referer: result.referer || site + "/" }, siteName);
+      }
+      if (result.reason !== "") {
+        reasons.push(result.reason);
+      }
+    }
+    const summary = reasons.filter((item, index, all) => all.indexOf(item) === index).slice(0, 4).join("；");
+    host.log(siteName + " 线路全部失败：" + (summary || "详情页里没有播放器"));
+    throw new Error(siteName + "没有找到播放地址：" + (summary || "详情页里没有播放器"));
   },
 };

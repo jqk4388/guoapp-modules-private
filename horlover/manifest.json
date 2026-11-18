@@ -1,7 +1,7 @@
 {
   "id": "horlover",
   "name": "4horLover",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "description": "日本男同影片合集，播放前需在应用内浏览器完成短链验证",
   "runtime": "js",
   "api": 1,
@@ -13,9 +13,43 @@
     "mixdrop.top",
     "mixdrop.co",
     "mxdrop.to",
-    "*.mxcontent.net"
+    "*.mxcontent.net",
+    "playmogo.com",
+    "www.playmogo.com",
+    "*.playmogo.com",
+    "dood.to",
+    "dood.watch",
+    "doodstream.com",
+    "ds2play.com",
+    "*.doodcdn.io",
+    "*.cloudatacdn.com",
+    "1069jp.com",
+    "www.1069jp.com",
+    "*.1069jp.com",
+    "hgcloud.to",
+    "www.hgcloud.to",
+    "*.hgcloud.to",
+    "luluvdo.com",
+    "www.luluvdo.com",
+    "*.luluvdo.com",
+    "dsvplay.com",
+    "www.dsvplay.com",
+    "*.dsvplay.com",
+    "boynextdoors.link",
+    "www.boynextdoors.link",
+    "*.boynextdoors.link",
+    "hypeboy.link",
+    "www.hypeboy.link",
+    "*.hypeboy.link",
+    "1069.website",
+    "www.1069.website",
+    "advtpe.com",
+    "www.advtpe.com",
+    "*.advtpe.com"
   ],
-  "capabilities": ["search"],
+  "capabilities": [
+    "search"
+  ],
   "aliases": [
     "4horlover.com",
     "www.4horlover.com",
@@ -24,8 +58,15 @@
     "mixdrop.co",
     "mxdrop.to"
   ],
-  "hostSuffixes": [".mxcontent.net", "mxcontent.net", ".4horlover.com", "4horlover.com"],
+  "hostSuffixes": [
+    ".mxcontent.net",
+    "mxcontent.net",
+    ".4horlover.com",
+    "4horlover.com"
+  ],
   "baseUrl": "https://4horlover.com",
   "browserFingerprint": true,
-  "allowEmptyCatalog": true
+  "allowEmptyCatalog": true,
+  "allowAnyHost": true,
+  "continuousFeed": true
 }
