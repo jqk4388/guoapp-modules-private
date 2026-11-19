@@ -1,89 +1,83 @@
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
+const HEALTH_KEY = "site-health";
+const HEALTH_TTL = 30 * 60 * 1000;
+const DEFAULT_KEY = "default-source";
+const DEFAULT_TTL = 10 * 60 * 1000;
+const LIST_TIMEOUT = 12000;
+const DEFAULT_TIMEOUT = 6000;
+const SEARCH_TIMEOUT = 8000;
+
+function homeList(home, path, page, separator) {
+  if (!(page > 1)) return home + path;
+  if (path.indexOf("?") >= 0) return home + path + "&" + separator + page;
+  return home + path + "?" + separator + page;
+}
+
 const sources = [
-  { id: "pornhub", name: "Pornhub", home: "https://cn.pornhub.com", path: "/gayporn", aliases: ["pornhub.com", "cn.pornhub.com", "www.pornhub.com"], suffixes: ["pornhub.com"] },
-  { id: "icegay", name: "IceGay", home: "https://www.icegay.tv", path: "/", aliases: ["icegay.tv", "www.icegay.tv"], suffixes: ["icegay.tv"] },
-  { id: "xvideos", name: "XVideos", home: "https://www.xvideos.com", path: "/gay", aliases: ["xvideos.com", "www.xvideos.com"], suffixes: ["xvideos.com"] },
-  { id: "boyfriendtv", name: "BoyfriendTV", home: "https://www.boyfriendtv.com", path: "/", aliases: ["boyfriendtv.com", "www.boyfriendtv.com"], suffixes: ["boyfriendtv.com"] },
-  { id: "gaymaletube", name: "GayMaleTube", home: "https://www.gaymaletube.com", path: "/zh/", aliases: ["gaymaletube.com", "www.gaymaletube.com"], suffixes: ["gaymaletube.com"] },
-  { id: "megapornfreehd", name: "MegaPornFreeHD", home: "https://megapornfreehd.com", path: "/", aliases: ["megapornfreehd.com", "www.megapornfreehd.com"], suffixes: ["megapornfreehd.com"] },
+  {
+    id: "pornhub",
+    name: "Pornhub",
+    home: "https://cn.pornhub.com",
+    pageSuffixes: ["pornhub.com"],
+    listUrl(page) { return homeList(this.home, "/gay/video", page, "page="); },
+    searchUrl(query, page) { return this.home + "/gay/video/search?search=" + encodeURIComponent(query) + (page > 1 ? "&page=" + page : ""); },
+    isCard(node) { return node.tag === "li" && (hasClass(node, "videoBox") || hasClass(node, "pcVideoListItem")); },
+    linkPattern: /view_video\.php\?viewkey=/i,
+  },
+  {
+    id: "icegay",
+    name: "IceGay",
+    home: "https://www.icegay.tv",
+    pageSuffixes: ["icegay.tv"],
+    listUrl(page) { return homeList(this.home, "/", page, "page="); },
+    searchUrl(query) { return this.home + "/search/" + encodeURIComponent(query); },
+    isCard(node) { return hasClass(node, "b-thumb-item"); },
+    linkPattern: /\/movies\/\d+\//i,
+  },
+  {
+    id: "xvideos",
+    name: "XVideos",
+    home: "https://www.xvideos.com",
+    pageSuffixes: ["xvideos.com"],
+    listUrl(page) { return this.home + "/gay" + (page > 1 ? "/" + page : ""); },
+    searchUrl(query, page) { return this.home + "/?k=" + encodeURIComponent(query) + (page > 1 ? "&p=" + page : ""); },
+    isCard(node) { return hasClass(node, "thumb-block"); },
+    linkPattern: /\/video\.[a-z0-9]+\//i,
+  },
+  {
+    id: "boyfriendtv",
+    name: "BoyfriendTV",
+    home: "https://www.boyfriendtv.com",
+    pageSuffixes: ["boyfriendtv.com"],
+    listUrl(page) { return homeList(this.home, "/", page, "page="); },
+    searchUrl(query) { return this.home + "/search/" + encodeURIComponent(query) + "/"; },
+    isCard(node) { return hasClass(node, "mtile-x7") || hasClass(node, "mtile"); },
+    linkPattern: /^\/videos\/\d+\//i,
+  },
+  {
+    id: "gaymaletube",
+    name: "GayMaleTube",
+    home: "https://www.gaymaletube.com",
+    pageSuffixes: ["gaymaletube.com"],
+    listUrl(page) { return homeList(this.home, "/zh/new", page, "page="); },
+    searchUrl(query) { return this.home + "/zh/search/" + encodeURIComponent(query) + "/"; },
+    isCard(node) { return hasClass(node, "card") && attribute(node, "data-public-id") !== ""; },
+    linkPattern: /\/out\/\?l=/i,
+  },
+  {
+    id: "megapornfreehd",
+    name: "MegaPornFreeHD",
+    home: "https://megapornfreehd.com",
+    pageSuffixes: ["megapornfreehd.com"],
+    listUrl(page) { return this.home + "/" + (page > 1 ? "page/" + page + "/" : ""); },
+    searchUrl(query, page) { return this.home + "/?s=" + encodeURIComponent(query) + (page > 1 ? "&paged=" + page : ""); },
+    isCard(node) { return node.tag === "article" && hasClass(node, "article-loop"); },
+    linkPattern: /\/20\d\d\/\d\d\/[^?#]+\.html/i,
+  },
 ];
 
-const categoriesList = [
-  { id: "", name: "全部" },
-  { id: "new", name: "最新" },
-  { id: "popular", name: "热门" },
-  { id: "gay", name: "男同" },
-  { id: "asian", name: "亚洲" },
-  { id: "japanese", name: "日本" },
-  { id: "korean", name: "韩国" },
-  { id: "chinese", name: "中国" },
-  { id: "western", name: "欧美" },
-  { id: "muscle", name: "肌肉" },
-  { id: "hunk", name: "壮汉" },
-  { id: "twink", name: "鲜肉" },
-  { id: "mature", name: "熟男" },
-  { id: "bear", name: "熊系" },
-  { id: "amateur", name: "业余" },
-  { id: "professional", name: "专业制作" },
-  { id: "solo", name: "单人" },
-  { id: "couple", name: "情侣" },
-  { id: "group", name: "多人" },
-  { id: "oral", name: "口交" },
-  { id: "anal", name: "肛交" },
-  { id: "masturbation", name: "自慰" },
-  { id: "outdoor", name: "户外" },
-  { id: "roleplay", name: "角色扮演" },
-  { id: "uniform", name: "制服" },
-  { id: "underwear", name: "内衣" },
-  { id: "romantic", name: "浪漫" },
-  { id: "bdsm", name: "BDSM" },
-  { id: "trans", name: "跨性别" },
-  { id: "shemale", name: "人妖" },
-  { id: "uncensored", name: "无码" },
-  { id: "hd", name: "高清" },
-  { id: "vr", name: "VR" },
-  { id: "short", name: "短片" },
-  { id: "long", name: "长片" },
-  { id: "fetish", name: "特殊偏好" },
-];
-
-const categoryAliases = {
-  "最新": "new", "最近更新": "new", "recent": "new", "latest": "new", "newest": "new",
-  "热门": "popular", "最受欢迎": "popular", "most popular": "popular", "popular videos": "popular", "trending": "popular", "排行": "popular",
-  "gay": "gay", "同性": "gay", "男同志": "gay", "男同": "gay", "同性恋": "gay",
-  "亚洲": "asian", "亚洲男同": "asian", "asian gay": "asian", "asian men": "asian",
-  "日本": "japanese", "日系": "japanese", "japanese": "japanese", "japan": "japanese",
-  "韩国": "korean", "韩系": "korean", "korean": "korean", "korea": "korean",
-  "中国": "chinese", "中国男同": "chinese", "chinese": "chinese", "china": "chinese",
-  "欧美": "western", "美国": "western", "欧美男同": "western", "western": "western", "american": "western",
-  "muscular": "muscle", "肌肉男": "muscle", "肌肉": "muscle", "muscle": "muscle",
-  "hunks": "hunk", "壮男": "hunk", "壮汉": "hunk", "hunk": "hunk",
-  "twinks": "twink", "鲜肉": "twink", "少年感": "twink", "twink": "twink",
-  "mature men": "mature", "成熟": "mature", "熟男": "mature", "daddy": "mature", "mature": "mature",
-  "bear gay": "bear", "熊男": "bear", "熊系": "bear", "bear": "bear",
-  "amateur gay": "amateur", "素人": "amateur", "业余": "amateur", "amateur": "amateur",
-  "studio": "professional", "片商": "professional", "专业制作": "professional", "professional": "professional",
-  "solo male": "solo", "solo": "solo", "单人": "solo",
-  "couples": "couple", "情侣": "couple", "双人": "couple", "couple": "couple",
-  "orgy": "group", "多人": "group", "群交": "group", "group": "group",
-  "blowjob": "oral", "oral sex": "oral", "口交": "oral", "口": "oral",
-  "anal sex": "anal", "肛交": "anal", "anal": "anal",
-  "masturbation": "masturbation", "自慰": "masturbation", "手淫": "masturbation",
-  "role play": "roleplay", "角色扮演": "roleplay", "roleplay": "roleplay",
-  "uniforms": "uniform", "制服": "uniform", "户外": "outdoor", "outdoor": "outdoor",
-  "underwear": "underwear", "内衣": "underwear", "内裤": "underwear",
-  "romance": "romantic", "romantic": "romantic", "浪漫": "romantic",
-  "bdsm": "bdsm", "fetish bdsm": "bdsm", "支配": "bdsm",
-  "transgender": "trans", "跨性别": "trans", "trans": "trans",
-  "shemale": "shemale", "人妖": "shemale", "跨性别女性": "shemale",
-  "uncensored": "uncensored", "无码": "uncensored", "无马赛克": "uncensored",
-  "hd": "hd", "高清": "hd", "1080p": "hd", "4k": "hd", "uhd": "hd",
-  "vr": "vr", "虚拟现实": "vr", "short videos": "short", "短片": "short", "short": "short",
-  "长片": "long", "feature length": "long", "long": "long",
-  "fetish": "fetish", "特殊偏好": "fetish", "癖好": "fetish",
-};
-
-const categoriesById = Object.create(null);
-for (const entry of categoriesList) categoriesById[entry.id] = entry;
+const sourcesById = Object.create(null);
+for (const source of sources) sourcesById[source.id] = source;
 
 function clean(value) {
   return String(value === undefined || value === null ? "" : value)
@@ -113,6 +107,7 @@ function nodeText(node) {
   const stack = [node];
   while (stack.length) {
     const current = stack.pop();
+    if (!current) continue;
     if (["script", "style", "noscript"].indexOf(String(current.tag || "").toLowerCase()) >= 0) continue;
     if (typeof current.text === "string") text += current.text;
     const children = current.children || [];
@@ -126,6 +121,7 @@ function collect(node, predicate, limit) {
   const stack = [node];
   while (stack.length) {
     const current = stack.pop();
+    if (!current) continue;
     if (current !== node && predicate(current)) {
       out.push(current);
       if (limit > 0 && out.length >= limit) return out;
@@ -141,263 +137,515 @@ function first(node, predicate) {
   return found.length ? found[0] : null;
 }
 
-function tokens(value) {
-  const raw = String(value || "").toLowerCase().replace(/[_-]+/g, " ").replace(/[^a-z0-9\u3400-\u9fff]+/g, " ").trim();
-  if (!raw) return [];
-  return raw.split(/\s+/);
-}
-
-function canonicalTag(value) {
-  const normalized = clean(value).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!normalized) return "";
-  if (categoryAliases[normalized]) return categoryAliases[normalized];
-  const words = tokens(normalized);
-  for (const word of words) {
-    const id = categoryAliases[word];
-    if (id && categoriesById[id]) return id;
-  }
-  return "";
-}
-
-function mergeTags(input) {
-  const ids = [];
-  const seen = Object.create(null);
-  for (const value of input) {
-    const id = canonicalTag(value);
-    if (id && !seen[id]) {
-      seen[id] = true;
-      ids.push(id);
-    }
-  }
-  return ids;
-}
-
-function sourceFor(value) {
-  for (const source of sources) if (source.id === value) return source;
-  return null;
-}
-
-function sourceCategoryPath(source, category) {
-  if (!category) return source.path;
-  const aliases = {
-    new: ["new", "latest", "videos", ""], popular: ["popular", "trending", "top", ""], gay: ["gay", "gayporn"],
-    asian: ["asian"], japanese: ["japanese", "japan"], korean: ["korean", "korea"], chinese: ["chinese", "china"],
-    western: ["american", "western"], muscle: ["muscle", "muscular"], hunk: ["hunk", "hunks"], twink: ["twink", "twinks"],
-    mature: ["mature", "daddy"], bear: ["bear"], amateur: ["amateur"], professional: ["studio"], solo: ["solo"],
-    couple: ["couple", "couples"], group: ["group", "orgy"], oral: ["blowjob", "oral"], anal: ["anal"],
-    masturbation: ["masturbation", "solo"], roleplay: ["roleplay"], uniform: ["uniform"], outdoor: ["outdoor"],
-    underwear: ["underwear"], romantic: ["romantic"], bdsm: ["bdsm"], trans: ["transgender"], shemale: ["shemale"],
-    uncensored: ["uncensored"], hd: ["hd", "4k"], vr: ["vr"], short: ["short"], long: ["long"], fetish: ["fetish"],
-  };
-  const candidates = aliases[category] || [category];
-  for (const candidate of candidates) {
-    if (source.id === "pornhub") return "/gayporn/" + encodeURIComponent(candidate);
-    if (source.id === "xvideos") return "/" + encodeURIComponent(candidate) + "/";
-    if (source.id === "icegay") return "/tag/" + encodeURIComponent(candidate) + "/";
-    if (source.id === "boyfriendtv") return "/gay/" + encodeURIComponent(candidate) + "/";
-    if (source.id === "gaymaletube") return "/zh/" + encodeURIComponent(candidate) + "/";
-    if (source.id === "megapornfreehd") return "/gay/" + encodeURIComponent(candidate) + "/";
-  }
-  return source.path;
-}
-
-function catalogUrl(source, page, category, query) {
-  let path = sourceCategoryPath(source, category);
-  if (query) {
-    const encoded = encodeURIComponent(query);
-    if (source.id === "pornhub") path = "/video/search?search=" + encoded;
-    else if (source.id === "xvideos") path = "/?k=" + encoded;
-    else if (source.id === "icegay") path = "/?s=" + encoded;
-    else if (source.id === "boyfriendtv") path = "/search/" + encoded + "/";
-    else if (source.id === "gaymaletube") path = "/zh/search/" + encoded + "/";
-    else path = "/?s=" + encoded;
-  }
-  if (page > 1) {
-    if (source.id === "pornhub") path += (path.indexOf("?") >= 0 ? "&" : "?") + "page=" + page;
-    else path = path.replace(/\/$/, "") + "/" + page + "/";
-  }
-  return host.resolveUrl(source.home + "/", path);
-}
-
-function absoluteUrl(source, raw, base) {
+function absoluteAny(base, raw) {
   const value = clean(raw);
-  if (!value || /^data:/i.test(value) || /^javascript:/i.test(value)) return "";
+  if (!value || /^(?:data|javascript|blob|about):/i.test(value)) return "";
   try {
-    const resolved = host.resolveUrl(base || source.home + "/", value);
-    const parsed = host.parseUrl(resolved);
-    const hostname = String(parsed.hostname || "").toLowerCase();
-    for (const suffix of source.suffixes) if (hostname === suffix || hostname.endsWith("." + suffix)) return resolved;
+    const resolved = host.resolveUrl(base, value);
+    const scheme = String(host.parseUrl(resolved).scheme || "").toLowerCase();
+    if (scheme !== "http" && scheme !== "https") return "";
+    return resolved;
   } catch (error) {
     return "";
   }
+}
+
+function hostMatches(url, suffixes) {
+  try {
+    const hostname = String(host.parseUrl(url).hostname || "").toLowerCase();
+    for (const suffix of suffixes) {
+      if (hostname === suffix || hostname.endsWith("." + suffix)) return true;
+    }
+  } catch (error) {
+    return false;
+  }
+  return false;
+}
+
+function sourceOfUrl(url) {
+  for (const source of sources) if (hostMatches(url, source.pageSuffixes)) return source;
+  return null;
+}
+
+function stripDuration(text) {
+  return clean(text)
+    .replace(/\s+\d{1,2}:\d{2}(?::\d{2})?\s*$/, "")
+    .replace(/\s+\d+\s*(?:分钟|秒|hours?|minutes?|mins?)\s*$/i, "")
+    .trim();
+}
+
+function itemTitle(source, card, link) {
+  const candidates = [];
+  const titled = collect(card, (node) => {
+    if (node.tag !== "a") return false;
+    if (!source.linkPattern.test(attribute(node, "href"))) return false;
+    return attribute(node, "title") !== "" || attribute(node, "aria-label") !== "";
+  }, 8);
+  for (const node of titled) {
+    candidates.push(attribute(node, "title"));
+    candidates.push(attribute(node, "aria-label"));
+  }
+  const image = first(card, (node) => node.tag === "img");
+  if (image) candidates.push(attribute(image, "alt"));
+  const titleNode = first(card, (node) => classTokens(node).some((token) => token === "title" || token === "entry-title" || /__title$/i.test(token)));
+  if (titleNode) candidates.push(nodeText(titleNode));
+  candidates.push(attribute(link, "title"));
+  candidates.push(attribute(link, "aria-label"));
+  for (const candidate of candidates) {
+    const text = stripDuration(candidate);
+    if (text.length >= 2 && text.length <= 512 && !/^(?:star|没有可用视频|play all|watch all)$/i.test(text)) return text;
+  }
+  const text = stripDuration(nodeText(link));
+  if (text.length >= 2 && text.length <= 512) return text;
   return "";
 }
 
-function sourceItemId(source, url) {
-  return url;
+function coverOf(card, base) {
+  const images = collect(card, (node) => node.tag === "img", 4);
+  for (const image of images) {
+    for (const name of ["data-src", "data-original", "data-thumb", "data-image", "src"]) {
+      const value = attribute(image, name);
+      if (!value) continue;
+      if (/(?:blank|lightbox|placeholder|lazy|1x1)[^/]*\.(?:gif|png|jpg|webp)/i.test(value)) continue;
+      const address = absoluteAny(base, value);
+      if (address) return address;
+    }
+    const srcset = attribute(image, "srcset") || attribute(image, "data-srcset");
+    if (srcset) {
+      const candidate = srcset.split(",")[0].trim().split(/\s+/)[0];
+      const address = absoluteAny(base, candidate);
+      if (address) return address;
+    }
+  }
+  const pictureSources = collect(card, (node) => node.tag === "source", 4);
+  for (const node of pictureSources) {
+    const srcset = attribute(node, "srcset") || attribute(node, "data-srcset");
+    if (!srcset) continue;
+    const candidate = srcset.split(",")[0].trim().split(/\s+/)[0];
+    const address = absoluteAny(base, candidate);
+    if (address) return address;
+  }
+  const styled = first(card, (node) => /background-image/i.test(attribute(node, "style")) && /url\(/i.test(attribute(node, "style")));
+  if (styled) {
+    const match = /url\(\s*['"]?([^'")]+)['"]?\s*\)/i.exec(attribute(styled, "style"));
+    if (match) return absoluteAny(base, match[1]);
+  }
+  return "";
 }
 
-function parseCards(source, body, category, categoryName) {
+function cardLink(source, card) {
+  const links = collect(card, (node) => node.tag === "a" && source.linkPattern.test(attribute(node, "href")), 20);
+  if (!links.length) return null;
+  for (const link of links) {
+    if (attribute(link, "title") !== "" || first(link, (node) => node.tag === "img")) return link;
+  }
+  return links[0];
+}
+
+function itemFromCard(source, card, base) {
+  const link = cardLink(source, card);
+  if (!link) return null;
+  const url = absoluteAny(base, attribute(link, "href"));
+  if (!url || !hostMatches(url, source.pageSuffixes)) return null;
+  const title = itemTitle(source, card, link);
+  if (!title) return null;
+  const cover = coverOf(card, base);
+  const durationMatch = clean(nodeText(card)).match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/);
+  const drama = {
+    id: host.dramaId(url),
+    source: host.source,
+    sourceId: url,
+    title: title.slice(0, 512),
+    name: title.slice(0, 512),
+    cover: cover,
+    coverUrl: cover,
+    channelName: source.name,
+    categoryName: source.name,
+    tags: [source.name],
+    sourceUrl: url,
+  };
+  if (durationMatch) {
+    drama.duration = durationMatch[0];
+    drama.remark = durationMatch[0];
+  }
+  return drama;
+}
+
+function parseList(source, body) {
   const document = host.parseHtml(body);
-  const candidates = collect(document, (node) => {
-    if (node.tag !== "a") return false;
-    const href = attribute(node, "href");
-    return href && /(?:view_video\.php|\/(?:video|videos|watch|embed|movie|clip|v)\/)/i.test(href);
-  }, 600);
+  const base = source.home + "/";
+  const cards = collect(document, source.isCard, 500);
   const items = [];
   const seen = Object.create(null);
-  for (const anchor of candidates) {
-    const href = attribute(anchor, "href");
-    const url = absoluteUrl(source, href);
-    if (!url || seen[url]) continue;
-    let card = anchor;
-    let steps = 0;
-    while (card && steps < 5 && !(hasClass(card, "video-box") || hasClass(card, "thumb-block") || hasClass(card, "thumb") || hasClass(card, "video-item") || hasClass(card, "videobox") || hasClass(card, "thumb-container") || card.tag === "article")) {
-      card = card.parent || null;
-      steps++;
-    }
-    const title = clean(attribute(anchor, "title")) || clean(attribute(anchor, "aria-label")) || clean(nodeText(anchor)) || clean(attribute(first(card || anchor, (node) => node.tag === "img") || {}, "alt"));
-    if (!title || title.length < 2) continue;
-    const image = first(card || anchor, (node) => node.tag === "img");
-    const lazyImage = image && (attribute(image, "data-src") || attribute(image, "data-thumb") || attribute(image, "data-original") || attribute(image, "src"));
-    const cover = lazyImage ? absoluteUrl(source, lazyImage) : "";
-    let duration = "";
-    let views = "";
-    if (card) {
-      const text = clean(nodeText(card));
-      const durationMatch = text.match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/);
-      duration = durationMatch ? durationMatch[0] : "";
-      const viewsMatch = text.match(/([\d,.]+\s*(?:万|千|K|M|million|views?))/i);
-      views = viewsMatch ? viewsMatch[1] : "";
-    }
-    const pageUrl = host.resolveUrl(source.home + "/", url);
-    const tags = mergeTags([categoryName, title, href, card ? nodeText(card) : ""]);
-    const itemText = sourceItemId(source, pageUrl);
-    const drama = {
-      id: host.dramaId(itemText),
-      source: host.source,
-      sourceId: itemText,
-      title: title.slice(0, 512),
-      name: title.slice(0, 512),
-      cover,
-      coverUrl: cover,
-      channelName: source.name,
-      categoryName: categoryName || "",
-      tags: tags.slice(0, 12),
-      sourceUrl: pageUrl,
-    };
-    if (duration) {
-      drama.duration = duration;
-      drama.remark = duration;
-    }
-    if (views) {
-      drama.views = views;
-    }
-    seen[url] = true;
+  for (const card of cards) {
+    const drama = itemFromCard(source, card, base);
+    if (!drama || seen[drama.sourceId]) continue;
+    seen[drama.sourceId] = true;
     items.push(drama);
-    if (items.length >= 150) break;
+    if (items.length >= 200) break;
+  }
+  if (!items.length) {
+    const anchors = collect(document, (node) => node.tag === "a" && source.linkPattern.test(attribute(node, "href")), 500);
+    for (const anchor of anchors) {
+      const url = absoluteAny(base, attribute(anchor, "href"));
+      if (!url || seen[url] || !hostMatches(url, source.pageSuffixes)) continue;
+      let holder = anchor;
+      let steps = 0;
+      while (holder.parent && steps < 4) { holder = holder.parent; steps++; }
+      const drama = itemFromCard(source, holder, base);
+      if (!drama || seen[drama.sourceId]) continue;
+      seen[drama.sourceId] = true;
+      items.push(drama);
+      if (items.length >= 200) break;
+    }
   }
   return items;
 }
 
-function pageResult(page, category, query) {
-  if (!(page >= 1) || page > 500) return { items: [], hasMore: false };
-  const categoryEntry = categoriesById[category || ""];
-  const label = categoryEntry ? categoryEntry.name : "";
-  const merged = [];
-  const seen = Object.create(null);
-  const warnings = [];
-  for (const source of sources) {
-    try {
-      const address = catalogUrl(source, page, category || "", query || "");
-      const response = host.fetchText({ url: address, referer: source.home + "/" });
-      const items = parseCards(source, response.body, category || "", label);
-      for (const item of items) {
-        const key = item.title.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]/g, "");
-        const globalKey = source.id + ":" + key;
-        if (seen[globalKey]) continue;
-        seen[globalKey] = true;
-        merged.push(item);
-      }
-    } catch (error) {
-      warnings.push(source.name + "：" + String(error && error.message ? error.message : error));
-    }
+function fetchPage(source, url, timeoutMs) {
+  const response = host.fetch({
+    method: "GET",
+    url: url,
+    followRedirects: true,
+    timeoutMs: timeoutMs || LIST_TIMEOUT,
+    limit: 6 * 1024 * 1024,
+    headers: {
+      "user-agent": UA,
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+    },
+  });
+  return String(response.body || "");
+}
+
+function readHealth() {
+  try {
+    const raw = host.loadState(HEALTH_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
   }
+}
+
+function writeHealth(state) {
+  try { host.saveState(HEALTH_KEY, JSON.stringify(state)); } catch (error) { /* ignore */ }
+}
+
+function markSource(source, ok) {
+  const state = readHealth();
+  state[source.id] = { ok: ok, at: Date.now() };
+  writeHealth(state);
+}
+
+function activeSources() {
+  const state = readHealth();
+  const now = Date.now();
+  const list = sources.filter((source) => {
+    const entry = state[source.id];
+    if (!entry) return true;
+    if (entry.ok) return true;
+    return !(entry.at > 0) || now - entry.at >= HEALTH_TTL;
+  });
+  return list.length ? list : sources.slice();
+}
+
+function cachedDefault() {
+  try {
+    const id = host.cacheGet(DEFAULT_KEY);
+    const source = sourceById(typeof id === "string" ? id : "");
+    if (!source) return null;
+    const entry = readHealth()[source.id];
+    if (entry && entry.ok === false && entry.at > 0 && Date.now() - entry.at < HEALTH_TTL) return null;
+    return source;
+  } catch (error) {
+    return null;
+  }
+}
+
+function sourceById(id) {
+  return sourcesById[id] || null;
+}
+
+function rememberDefault(source) {
+  try { host.cacheSet(DEFAULT_KEY, source.id, DEFAULT_TTL); } catch (error) { /* ignore */ }
+}
+
+function forgetDefault() {
+  try { host.cacheSet(DEFAULT_KEY, null, 0); } catch (error) { /* ignore */ }
+}
+
+function catalogFor(source, page, timeoutMs) {
+  const body = fetchPage(source, source.listUrl(page), timeoutMs || LIST_TIMEOUT);
+  const items = parseList(source, body);
+  if (!items.length && page === 1) throw new Error(source.name + " 列表页没有返回可识别的视频");
+  if (page === 1) markSource(source, true);
   return {
-    items: merged.slice(0, 300),
-    hasMore: merged.length >= 30,
-    warning: warnings.length === sources.length ? "所有来源暂时不可用：" + warnings.join("；") : "",
+    items: items,
+    hasMore: items.length >= 8 && page < 200,
   };
 }
 
-module.exports = {
-  validCategory(category) { return !!categoriesById[String(category || "")]; },
-  categories() { return categoriesList.map((item) => ({ id: item.id, name: item.name })); },
-  catalogPage(page, category) { return pageResult(page, category, ""); },
-  search(page, query) {
-    const keyword = clean(query);
-    return keyword ? pageResult(page, "", keyword) : { items: [], hasMore: false };
-  },
-  detail(sourceId) {
-    const text = String(sourceId || "");
-    const parsed = host.parseUrl(text);
-    const hostname = String(parsed.hostname || "").toLowerCase();
-    let source = null;
-    for (const candidate of sources) {
-      if (candidate.suffixes.some((suffix) => hostname === suffix || hostname.endsWith("." + suffix))) {
-        source = candidate;
-        break;
+function errorText(error) {
+  const message = error && error.message ? String(error.message) : String(error);
+  return message.length > 120 ? message.slice(0, 120) : message;
+}
+
+function pageResult(page, category, query) {
+  if (!(page >= 1) || page > 200) return { items: [], hasMore: false };
+  const started = Date.now();
+  const merged = [];
+  const seen = Object.create(null);
+  const warnings = [];
+  let hasMore = false;
+
+  function append(items) {
+    for (const item of items) {
+      if (!item || seen[item.sourceId]) continue;
+      seen[item.sourceId] = true;
+      merged.push(item);
+    }
+  }
+
+  if (query) {
+    const pool = activeSources();
+    for (const source of pool) {
+      if (Date.now() - started > 45000) break;
+      try {
+        const body = fetchPage(source, source.searchUrl(query, page), SEARCH_TIMEOUT);
+        const items = parseList(source, body);
+        if (page === 1 && items.length) markSource(source, true);
+        append(items);
+        if (items.length >= 8) hasMore = true;
+      } catch (error) {
+        warnings.push(source.name);
       }
     }
+    return {
+      items: merged.slice(0, 300),
+      hasMore: hasMore && page < 20,
+      warning: warnings.length === pool.length ? "所有来源搜索都失败了" : "",
+    };
+  }
+
+  if (category) {
+    const source = sourceById(category);
+    if (!source) throw new Error("站点分类无效");
+    try {
+      const result = catalogFor(source, page);
+      return result;
+    } catch (error) {
+      markSource(source, false);
+      return { items: [], hasMore: false, warning: source.name + " 暂时无法加载：" + errorText(error) };
+    }
+  }
+
+  // 应用固定把「全部」放在第一位；这里只取一个可用站点，避免一次刷新所有站点。
+  let candidates;
+  if (page > 1) {
+    const chosen = cachedDefault();
+    candidates = chosen ? [chosen] : [activeSources()[0] || sources[0]];
+  } else {
+    const preferred = cachedDefault();
+    const pool = activeSources();
+    const ordered = preferred ? [preferred].concat(pool.filter((item) => item.id !== preferred.id)) : pool;
+    candidates = ordered.slice(0, 3);
+  }
+  for (const source of candidates) {
+    try {
+      const result = catalogFor(source, page, DEFAULT_TIMEOUT);
+      rememberDefault(source);
+      return {
+        items: result.items,
+        hasMore: result.hasMore,
+        warning: warnings.length ? "已跳过：" + warnings.join("、") : "",
+      };
+    } catch (error) {
+      markSource(source, false);
+      warnings.push(source.name);
+    }
+  }
+  if (page === 1) forgetDefault();
+  return {
+    items: [],
+    hasMore: false,
+    warning: warnings.length ? "所有来源暂时不可用：" + warnings.join("、") : "",
+  };
+}
+
+function detailTitle(source, document) {
+  const og = first(document, (node) => node.tag === "meta" && attribute(node, "property") === "og:title");
+  let title = og ? attribute(og, "content") : "";
+  if (!title) {
+    const titleNode = first(document, (node) => String(node.tag || "").toLowerCase() === "title");
+    title = nodeText(titleNode);
+  }
+  if (!title) title = nodeText(first(document, (node) => node.tag === "h1"));
+  title = clean(title)
+    .replace(/\s*[-|–—]\s*(?:Pornhub(?: Gay)?|BoyFriendTV|IceGay(?:\.Tv)?|XVIDEOS(?:\.COM)?|Gay Male Tube|MegaPornFreeHD.*)\s*$/i, "")
+    .replace(/\s+at Ice Gay Tube\s*$/i, "")
+    .trim();
+  return title.slice(0, 512) || source.name;
+}
+
+function detailCover(document, base) {
+  const meta = first(document, (node) => node.tag === "meta" && (attribute(node, "property") === "og:image" || attribute(node, "name") === "twitter:image"));
+  if (meta) {
+    const address = absoluteAny(base, attribute(meta, "content"));
+    if (address) return address;
+  }
+  const images = collect(document, (node) => node.tag === "img", 40);
+  let fallback = "";
+  for (const image of images) {
+    const raw = attribute(image, "data-src") || attribute(image, "data-original") || attribute(image, "src");
+    if (!raw || /logo|icon|flag|avatar|sprite|placeholder/i.test(raw)) continue;
+    const address = absoluteAny(base, raw);
+    if (!address) continue;
+    const width = parseInt(attribute(image, "width") || "0", 10);
+    const style = attribute(image, "class").toLowerCase();
+    if (attribute(image, "data-src") !== "" || width >= 300 || /poster|cover|thumb|video|movie/i.test(style)) return address;
+    if (!fallback) fallback = address;
+  }
+  return fallback;
+}
+
+function decodeEscapes(value) {
+  return String(value === undefined || value === null ? "" : value)
+    .replace(/\\\//g, "/")
+    .replace(/\\u002[fF]/g, "/")
+    .replace(/\\u0026/gi, "&")
+    .replace(/\\u003[dD]/g, "=")
+    .replace(/\\u003[fF]/g, "?")
+    .replace(/&amp;/g, "&");
+}
+
+function mediaFromDocument(document, body, base) {
+  const candidates = [];
+  const add = (raw) => {
+    const value = decodeEscapes(raw);
+    if (typeof value !== "string" || value === "") return;
+    const address = absoluteAny(base, value);
+    if (!address) return;
+    if (!/\.(?:mp4|m3u8)(?:[?#]|$)/i.test(address)) return;
+    if (candidates.indexOf(address) >= 0) return;
+    candidates.push(address);
+  };
+  const metas = collect(document, (node) => node.tag === "meta" && /^(?:og:video|twitter:player:stream)/i.test(attribute(node, "property") || attribute(node, "name")), 6);
+  for (const meta of metas) add(attribute(meta, "content"));
+  const mediaTags = collect(document, (node) => node.tag === "source" || node.tag === "video", 10);
+  for (const tag of mediaTags) {
+    add(attribute(tag, "src"));
+    add(attribute(tag, "data-src"));
+  }
+  const text = String(body || "");
+  const patterns = [
+    /setVideoUrlHigh\s*\(\s*["']([^"']+)["']/ig,
+    /setVideoHLS\s*\(\s*["']([^"']+)["']/ig,
+    /"hlsAuto"\s*:\s*"([^"]+)"/ig,
+    /"(?:video_url|videoUrl|contentUrl|playlist|file|src)"\s*:\s*"([^"]+\.(?:mp4|m3u8)[^"]*)"/ig,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) add(match[1]);
+  }
+  if (!candidates.length) {
+    const found = text.match(/https?:\/\/[^\s"'<>\\]+\.(?:mp4|m3u8)[^\s"'<>]*/ig) || [];
+    for (const value of found.slice(0, 6)) add(value);
+  }
+  return candidates;
+}
+
+function extractMedia(source, body, base) {
+  const document = host.parseHtml(body);
+  const candidates = mediaFromDocument(document, body, base);
+  if (candidates.length) {
+    const hls = candidates.filter((item) => /\.m3u8(?:\?|$)/i.test(item));
+    return hls.length ? hls[0] : candidates[0];
+  }
+  const frames = collect(document, (node) => node.tag === "iframe" && attribute(node, "src") !== "", 4);
+  for (const frame of frames) {
+    const address = absoluteAny(base, attribute(frame, "src"));
+    if (!address || !/voe\.sx/i.test(address)) continue;
+    try {
+      const response = host.fetchText({ url: address, referer: base });
+      const text = String(response.body || "");
+      const nested = mediaFromDocument(host.parseHtml(text), text, response.url || address);
+      if (nested.length) {
+        const hls = nested.filter((item) => /\.m3u8(?:\?|$)/i.test(item));
+        return hls.length ? hls[0] : nested[0];
+      }
+    } catch (error) { /* try next frame */ }
+  }
+  return "";
+}
+
+module.exports = {
+  validCategory(category) {
+    const value = String(category === undefined || category === null ? "" : category).trim();
+    return value === "" || sourceById(value) !== null;
+  },
+
+  categories() {
+    const list = activeSources();
+    return (list.length ? list : sources).map((source) => ({ id: source.id, name: source.name }));
+  },
+
+  catalogPage(page, category) {
+    return pageResult(page, String(category === undefined || category === null ? "" : category).trim(), "");
+  },
+
+  search(page, query) {
+    const keyword = clean(query);
+    if (!keyword) return { items: [], hasMore: false };
+    return pageResult(page, "", keyword);
+  },
+
+  detail(sourceId) {
+    const text = String(sourceId === undefined || sourceId === null ? "" : sourceId).trim();
+    const source = sourceOfUrl(text);
     if (!source) throw new Error("视频来源未知");
-    const url = host.resolveUrl(source.home + "/", text);
-    const response = host.fetchText({ url, referer: source.home + "/" });
-    const document = host.parseHtml(response.body);
-    const titleNode = first(document, (node) => node.tag === "title");
-    const title = nodeText(titleNode) || source.name;
-    const image = first(document, (node) => node.tag === "meta" && (attribute(node, "property") === "og:image" || attribute(node, "name") === "twitter:image"));
-    const cover = image ? absoluteUrl(source, attribute(image, "content"), url) : "";
-    const itemText = url;
+    const response = host.fetchText({ url: text, referer: source.home + "/" });
+    const body = String(response.body || "");
+    const document = host.parseHtml(body);
+    const url = response.url || text;
+    const title = detailTitle(source, document);
+    const cover = detailCover(document, url);
     const drama = {
-      id: host.dramaId(itemText), source: host.source, sourceId: itemText,
-      title: title.slice(0, 512), name: title.slice(0, 512), cover, coverUrl: cover,
-      channelName: source.name, categoryName: "", sourceUrl: url,
+      id: host.dramaId(text),
+      source: host.source,
+      sourceId: text,
+      title: title,
+      name: title,
+      cover: cover,
+      coverUrl: cover,
+      channelName: source.name,
+      categoryName: source.name,
+      tags: [source.name],
+      sourceUrl: text,
     };
     const chapter = {
-      id: host.chapterId(itemText, "1"), source: host.source, title: title.slice(0, 128), currentEpisode: 1,
-      pageUrl: url, referer: source.home + "/", videoUrl: url,
+      id: host.chapterId(text, "1"),
+      source: host.source,
+      title: title.slice(0, 128),
+      currentEpisode: 1,
+      pageUrl: text,
+      referer: source.home + "/",
+      videoUrl: text,
     };
-    return { drama, chapters: [chapter] };
+    return { drama: drama, chapters: [chapter] };
   },
+
   resolveMedia(task) {
     const taskObject = task && typeof task === "object" ? task : {};
     const chapter = taskObject.chapter || {};
-    const sourceId = String(chapter.videoUrl || chapter.pageUrl || chapter.src || taskObject.dramaId || taskObject.sourceId || taskObject.id || "");
-    const parsed = host.parseUrl(sourceId);
-    const hostname = String(parsed.hostname || "").toLowerCase();
-    let source = null;
-    for (const candidate of sources) {
-      if (candidate.suffixes.some((suffix) => hostname === suffix || hostname.endsWith("." + suffix))) {
-        source = candidate;
-        break;
-      }
-    }
+    const raw = String(chapter.pageUrl || chapter.videoUrl || chapter.src || taskObject.sourceId || taskObject.dramaId || "").trim();
+    const source = sourceOfUrl(raw);
     if (!source) throw new Error("播放信息无效，请刷新详情后重试");
-    const url = host.resolveUrl(source.home + "/", sourceId);
-    const response = host.fetchText({ url, referer: source.home + "/" });
-    const text = String(response.body || "");
-    const patterns = [
-      /<source\b[^>]*\bsrc=["']([^"']+)["']/ig,
-      /<video\b[^>]*\bsrc=["']([^"']+)["']/ig,
-      /(?:file|src|video_url|videoUrl|contentUrl)\s*[:=]\s*["']([^"']+\.(?:mp4|m3u8)(?:\?[^"']*)?)["']/ig,
-    ];
-    for (const pattern of patterns) {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const media = absoluteUrl(source, match[1], url);
-        if (media && /\.(?:mp4|m3u8)(?:\?|$)/i.test(media)) return host.prepareWebMedia({ url: media, referer: url }, source.name);
-      }
-    }
-    throw new Error(source.name + "详情页未提取到直接媒体地址；请在应用浏览器中打开来源页播放");
+    const response = host.fetchText({ url: raw, referer: source.home + "/" });
+    const body = String(response.body || "");
+    const base = response.url || raw;
+    const media = extractMedia(source, body, base);
+    if (!media) throw new Error(source.name + " 详情页没有找到可直接播放的地址");
+    return host.prepareWebMedia({ url: media, referer: base }, source.name);
   },
 };

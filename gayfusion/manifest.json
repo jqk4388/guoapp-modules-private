@@ -1,28 +1,37 @@
 {
   "id": "gayfusion",
   "name": "GayFusion",
-  "version": "0.1.0",
-  "description": "六个男同影片站点的分类聚合与统一浏览",
+  "version": "0.2.0",
+  "description": "六个男同影片站点的分站浏览：点一个标签只加载一个站点",
   "runtime": "js",
   "api": 1,
   "adult": true,
   "hosts": [
     "pornhub.com",
     "*.pornhub.com",
+    "*.phncdn.com",
     "icegay.tv",
     "*.icegay.tv",
     "xvideos.com",
     "*.xvideos.com",
+    "*.xvideos-cdn.com",
     "boyfriendtv.com",
     "*.boyfriendtv.com",
     "gaymaletube.com",
     "*.gaymaletube.com",
+    "*.ttcache.com",
+    "iceporn.com",
+    "*.iceporn.com",
+    "*.iceppsn.com",
     "megapornfreehd.com",
-    "*.megapornfreehd.com"
+    "*.megapornfreehd.com",
+    "voe.sx",
+    "*.voe.sx"
   ],
   "capabilities": [
     "search"
   ],
+  "browserFingerprint": true,
   "aliases": [
     "cn.pornhub.com",
     "www.icegay.tv",
@@ -45,6 +54,6 @@
     ".megapornfreehd.com",
     "megapornfreehd.com"
   ],
-  "baseUrl": "https://cn.pornhub.com/gayporn",
+  "baseUrl": "https://cn.pornhub.com/gay/video",
   "allowAnyHost": true
 }
