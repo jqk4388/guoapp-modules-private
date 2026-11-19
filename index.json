@@ -120,6 +120,21 @@
         "manifest.json": "e0539006a49ab6f5e9dfc05414f0ba7f7b9cd1538e97ec0d6975847829ffeafb",
         "main.js": "c5074b0568ca5444c686fc62ed032857b8edb910fe72b9a9dff3bedbc8c11291"
       }
+    },
+    {
+      "id": "thegay",
+      "name": "TheGay",
+      "version": "0.1.0",
+      "description": "欧美男同影片，230 个分类与关键词搜索",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "thegay-v0.1.0",
+      "path": "thegay",
+      "sha256": {
+        "manifest.json": "5f7e086d28bb45d2307c20707841726d8a6ad057b9e9d23e851f055ddfb4fe23",
+        "main.js": "2f56aab3b1d89f729465cd98f847cab8bfa27c1e0fff560b529d1e5a1b9737c4"
+      }
     }
   ]
 }
