@@ -1,0 +1,28 @@
+{
+  "id": "thegay",
+  "name": "TheGay",
+  "version": "0.1.0",
+  "description": "欧美男同影片，230 个分类与关键词搜索",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "thegay.com",
+    "www.thegay.com",
+    "*.thegay.com",
+    "*.ahcdn.com"
+  ],
+  "capabilities": [
+    "search"
+  ],
+  "allowEmptyCatalog": true,
+  "aliases": [
+    "thegay.com",
+    "www.thegay.com"
+  ],
+  "hostSuffixes": [
+    ".thegay.com",
+    "thegay.com"
+  ],
+  "baseUrl": "https://thegay.com"
+}
