@@ -28,9 +28,17 @@ const declaredHosts = [
   "voe.sx",
   "*.voe.sx",
 ];
-const categoriesList = [
-  { id: "", name: "最新" },
-  { id: "gay-porn-movies", name: "影片" },
+const listingPath = "/videos/";
+const rankingPrefix = "rank-";
+const rankingPeriods = { "rank-day": "day", "rank-week": "week", "rank-month": "month" };
+const rankingPanelPrefix = "jhvr-ranking-3-";
+const specialCategories = [
+  { id: "", name: "最近添加" },
+  { id: "rank-day", name: "排行 · 今日" },
+  { id: "rank-week", name: "排行 · 7 天" },
+  { id: "rank-month", name: "排行 · 本月" },
+];
+const fallbackCategories = [
   { id: "onlyfans", name: "OnlyFans" },
   { id: "beefcakehunter", name: "BeefcakeHunter" },
   { id: "belamionline", name: "BelAmi" },
@@ -42,7 +50,14 @@ const categoriesList = [
   { id: "carnalplus", name: "CarnalPlus" },
   { id: "scoutboys", name: "ScoutBoys" },
   { id: "cockyboys", name: "CockyBoys" },
+  { id: "gay-porn-movies", name: "Gay Porn Movies" },
 ];
+const categoriesCacheKey = "categories";
+const categoriesCacheTTL = 12 * 60 * 60 * 1000;
+const rankingCachePrefix = "ranking-";
+const rankingCacheTTL = 10 * 60 * 1000;
+const categoriesEndpoint = site + "/wp-json/wp/v2/categories?per_page=100";
+const categoriesFields = "&_fields=id,slug,name,parent,count";
 const ignoredCardClasses = ["video-categories", "video-tags", "videopost-inner"];
 const signaturePrefix = "page-signature:";
 const gridPageSize = 6;
@@ -142,14 +157,30 @@ function documentOf(body) {
   return host.parseHtml(body);
 }
 
-function categoryPath(category) {
-  if (category === "") {
-    return "/";
-  }
-  if (!slugPattern.test(category)) {
+function isRankingCategory(category) {
+  return typeof category === "string" && rankingPeriods[category] !== undefined;
+}
+
+function categoryPathSlug(category) {
+  const value = String(category === undefined || category === null ? "" : category).trim();
+  if (!/^[A-Za-z0-9._~%-]{1,200}$/.test(value)) {
     return "";
   }
-  return "/category/" + category + "/";
+  return value.replace(/~/g, "/");
+}
+
+function categoryPath(category) {
+  if (category === "") {
+    return listingPath;
+  }
+  if (isRankingCategory(category)) {
+    return "";
+  }
+  const slug = categoryPathSlug(category);
+  if (slug === "") {
+    return "";
+  }
+  return "/category/" + slug + "/";
 }
 
 function pagePath(path, page) {
@@ -239,14 +270,8 @@ function cardNode(node) {
   return collect(node, (child) => hasClass(child, "thumb-video"), 1).length > 0;
 }
 
-function postAddress(node) {
-  const anchors = collect(node, (child) => child.tag === "a" && hasClass(child, "thumb-video"), 1);
-  const anchor = anchors.length > 0 ? anchors[0] : null;
-  let address = anchor ? attribute(anchor, "href") : "";
-  if (address === "") {
-    const anyAnchor = first(node, (child) => child.tag === "a" && attribute(child, "href") !== "");
-    address = anyAnchor ? attribute(anyAnchor, "href") : "";
-  }
+function postFromHref(raw) {
+  const address = clean(raw);
   if (address === "") {
     return null;
   }
@@ -274,6 +299,17 @@ function postAddress(node) {
     return null;
   }
   return { slug, url: "https://" + parsed.host + "/" + slug + "/" };
+}
+
+function postAddress(node) {
+  const anchors = collect(node, (child) => child.tag === "a" && hasClass(child, "thumb-video"), 1);
+  const anchor = anchors.length > 0 ? anchors[0] : null;
+  let address = anchor ? attribute(anchor, "href") : "";
+  if (address === "") {
+    const anyAnchor = first(node, (child) => child.tag === "a" && attribute(child, "href") !== "");
+    address = anyAnchor ? attribute(anyAnchor, "href") : "";
+  }
+  return postFromHref(address);
 }
 
 function cardTitle(node) {
@@ -857,6 +893,168 @@ function detailPage(slug) {
   };
 }
 
+function readCachedCategories() {
+  const cached = host.cacheGet(categoriesCacheKey);
+  if (typeof cached !== "string" || cached === "") {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(cached);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function remoteCategories() {
+  const raw = [];
+  for (let step = 1; step <= 5; step++) {
+    const url = categoriesEndpoint + "&page=" + step + categoriesFields;
+    const response = host.fetchText({ url, referer: site + "/" });
+    let list = null;
+    try {
+      list = JSON.parse(response.body);
+    } catch (error) {
+      break;
+    }
+    if (!Array.isArray(list) || list.length === 0) {
+      break;
+    }
+    for (const entry of list) {
+      raw.push(entry);
+    }
+    if (list.length < 100) {
+      break;
+    }
+  }
+  const byId = {};
+  for (const entry of raw) {
+    const id = String(entry && entry.id);
+    if (id !== "" && id !== "undefined") {
+      byId[id] = entry;
+    }
+  }
+  const pathOf = (entry) => {
+    const slug = clean(entry && entry.slug);
+    if (slug === "") {
+      return "";
+    }
+    const parent = byId[String(entry && entry.parent)];
+    const parentPath = parent ? pathOf(parent) : "";
+    return parentPath === "" ? slug : parentPath + "/" + slug;
+  };
+  const items = [];
+  const seen = new Set();
+  for (const entry of raw) {
+    const count = parseInt(String(entry && entry.count), 10) || 0;
+    if (count <= 0) {
+      continue;
+    }
+    const path = pathOf(entry);
+    if (path === "" || seen.has(path)) {
+      continue;
+    }
+    seen.add(path);
+    const name = clean(entry && entry.name) || path;
+    const parent = byId[String(entry && entry.parent)];
+    const parentName = parent ? clean(parent.name) : "";
+    const label = parentName !== "" ? parentName + " · " + name : name;
+    items.push({ id: path.replace(/\//g, "~"), name: truncate(label, 40), count });
+  }
+  items.sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+    return left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
+  });
+  return items.map((item) => ({ id: item.id, name: item.name }));
+}
+
+function rankingDrama(raw) {
+  const drama = {
+    id: host.dramaId(raw.slug),
+    source: host.source,
+    sourceId: raw.slug,
+    title: truncate(raw.title, 512),
+    name: truncate(raw.title, 512),
+    cover: raw.cover,
+    coverUrl: raw.cover,
+    channelName: siteName,
+    categoryName: "排行",
+    sourceUrl: raw.url,
+  };
+  if (raw.rank !== "") {
+    drama.badge = "第 " + raw.rank + " 名";
+  }
+  if (raw.duration !== "") {
+    drama.duration = raw.duration;
+    drama.remark = raw.duration;
+  }
+  return drama;
+}
+
+function rankingCards(panel) {
+  const cards = [];
+  if (!panel) {
+    return cards;
+  }
+  for (const card of collect(panel, (node) => node.tag === "article" && hasClass(node, "jhvr-card"))) {
+    const anchor = first(card, (node) => node.tag === "a" && hasClass(node, "jhvr-thumb-link"));
+    if (!anchor) {
+      continue;
+    }
+    const post = postFromHref(attribute(anchor, "href"));
+    if (!post) {
+      continue;
+    }
+    const image = first(card, (node) => node.tag === "img");
+    const durationNode = first(card, (node) => hasClass(node, "jhvr-duration"));
+    const rankNode = first(card, (node) => hasClass(node, "jhvr-rank-number"));
+    cards.push({
+      slug: post.slug,
+      url: post.url,
+      title: clean(attribute(anchor, "title")) || clean(nodeText(anchor)) || post.slug,
+      cover: image ? absoluteUrl(attribute(image, "src"), site + "/") : "",
+      duration: durationNode ? durationText(clean(nodeText(durationNode))) : "",
+      rank: rankNode ? clean(nodeText(rankNode)) : String(cards.length + 1),
+    });
+  }
+  return cards;
+}
+
+function loadRankings() {
+  const doc = documentOf(fetchPage("/").body);
+  const result = {};
+  for (const key of Object.keys(rankingPeriods)) {
+    const period = rankingPeriods[key];
+    const panel = first(doc, (node) => attribute(node, "id") === rankingPanelPrefix + period);
+    const cards = rankingCards(panel);
+    result[period] = cards;
+    try {
+      host.cacheSet(rankingCachePrefix + period, JSON.stringify(cards), rankingCacheTTL);
+    } catch (error) {
+      host.log(siteName + " 排行缓存写入失败：" + errorText(error));
+    }
+  }
+  return result;
+}
+
+function rankingItems(period) {
+  const cached = host.cacheGet(rankingCachePrefix + period);
+  if (typeof cached === "string" && cached !== "") {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(rankingDrama);
+      }
+    } catch (error) {
+      host.cacheSet(rankingCachePrefix + period, "", 0);
+    }
+  }
+  const all = loadRankings();
+  return (all[period] || []).map(rankingDrama);
+}
+
 function dramaSourceId(task) {
   const prefix = host.source + ":";
   const value = task && typeof task.dramaId === "string" ? task.dramaId : "";
@@ -885,14 +1083,46 @@ function playerAddressOf(chapter) {
 
 module.exports = {
   validCategory(category) {
-    return category === "" || categoryPath(category) !== "";
+    if (typeof category !== "string") {
+      return false;
+    }
+    const value = category.trim();
+    return value === "" || isRankingCategory(value) || categoryPathSlug(value) !== "";
   },
 
   categories() {
-    return categoriesList.slice();
+    const cached = readCachedCategories();
+    if (cached !== null) {
+      return cached;
+    }
+    let remote = [];
+    try {
+      remote = remoteCategories();
+    } catch (error) {
+      host.log(siteName + " 分类列表取失败：" + errorText(error));
+    }
+    const items = specialCategories.slice();
+    const extra = remote.length > 0 ? remote : fallbackCategories;
+    for (const entry of extra) {
+      items.push({ id: entry.id, name: entry.name });
+    }
+    if (remote.length > 0) {
+      try {
+        host.cacheSet(categoriesCacheKey, JSON.stringify(items), categoriesCacheTTL);
+      } catch (error) {
+        host.log(siteName + " 分类缓存写入失败：" + errorText(error));
+      }
+    }
+    return items;
   },
 
   catalogPage(page, category) {
+    if (isRankingCategory(category)) {
+      if (!(page >= 1) || page > 1) {
+        return { items: [], hasMore: false };
+      }
+      return { items: rankingItems(rankingPeriods[category]), hasMore: false };
+    }
     const path = categoryPath(category);
     if (path === "") {
       throw new Error(siteName + "没有分类 " + category);
