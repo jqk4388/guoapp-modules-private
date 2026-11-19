@@ -1,7 +1,7 @@
 {
   "id": "gayfusion",
   "name": "GayFusion",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "六个男同影片站点的分站浏览：点一个标签只加载一个站点",
   "runtime": "js",
   "api": 1,
@@ -26,7 +26,17 @@
     "megapornfreehd.com",
     "*.megapornfreehd.com",
     "voe.sx",
-    "*.voe.sx"
+    "*.voe.sx",
+    "playmogo.com",
+    "*.playmogo.com",
+    "bysezejataos.com",
+    "*.bysezejataos.com",
+    "dood.to",
+    "dood.watch",
+    "doodstream.com",
+    "ds2play.com",
+    "advtpe.com",
+    "*.doodcdn.io"
   ],
   "capabilities": [
     "search"
@@ -38,7 +48,9 @@
     "www.xvideos.com",
     "www.boyfriendtv.com",
     "www.gaymaletube.com",
-    "megapornfreehd.com"
+    "megapornfreehd.com",
+    "playmogo.com",
+    "bysezejataos.com"
   ],
   "hostSuffixes": [
     ".pornhub.com",
@@ -52,7 +64,11 @@
     ".gaymaletube.com",
     "gaymaletube.com",
     ".megapornfreehd.com",
-    "megapornfreehd.com"
+    "megapornfreehd.com",
+    ".playmogo.com",
+    "playmogo.com",
+    ".bysezejataos.com",
+    "bysezejataos.com"
   ],
   "baseUrl": "https://cn.pornhub.com/gay/video",
   "allowAnyHost": true

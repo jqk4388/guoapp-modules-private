@@ -6,6 +6,18 @@ const DEFAULT_TTL = 10 * 60 * 1000;
 const LIST_TIMEOUT = 12000;
 const DEFAULT_TIMEOUT = 6000;
 const SEARCH_TIMEOUT = 8000;
+const BROWSER_MARKER = "browser://";
+const DOOD_HOSTS = [
+  "playmogo.com",
+  "dood.to",
+  "dood.watch",
+  "doodstream.com",
+  "ds2play.com",
+  "advtpe.com",
+  "bysezejataos.com",
+  "d0000d.com",
+  "dsvplay.com",
+];
 
 function homeList(home, path, page, separator) {
   if (!(page > 1)) return home + path;
@@ -302,20 +314,132 @@ function parseList(source, body) {
   return items;
 }
 
-function fetchPage(source, url, timeoutMs) {
+function fetchBody(url, referer, timeoutMs, extraHeaders) {
+  const headers = {
+    "user-agent": UA,
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+  };
+  if (referer) headers.referer = referer;
+  if (extraHeaders) {
+    for (const name in extraHeaders) headers[name] = extraHeaders[name];
+  }
   const response = host.fetch({
     method: "GET",
     url: url,
     followRedirects: true,
     timeoutMs: timeoutMs || LIST_TIMEOUT,
     limit: 6 * 1024 * 1024,
-    headers: {
-      "user-agent": UA,
-      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
-    },
+    headers: headers,
   });
   return String(response.body || "");
+}
+
+function fetchPage(source, url, timeoutMs) {
+  return fetchBody(url, "", timeoutMs);
+}
+
+function originOf(address) {
+  try {
+    const parsed = host.parseUrl(address);
+    return String(parsed.scheme || "") + "://" + String(parsed.host || "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function isDoodHost(address) {
+  return DOOD_HOSTS.some((suffix) => hostMatches(address, [suffix]));
+}
+
+function randomToken(length) {
+  const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let text = "";
+  for (let index = 0; index < length; index++) text += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  return text;
+}
+
+function doodMedia(address, body) {
+  const pass = /\/pass_md5\/[^'"\s]+/.exec(body);
+  if (!pass) return "";
+  const origin = originOf(address);
+  if (!origin) return "";
+  let base = "";
+  try {
+    base = fetchBody(origin + pass[0], address, 15000).trim();
+  } catch (error) {
+    return "";
+  }
+  if (!/^https?:\/\//.test(base)) return "";
+  const token = pass[0].slice(pass[0].lastIndexOf("/") + 1);
+  return base + randomToken(10) + "?token=" + token + "&expiry=" + Date.now();
+}
+
+function gdpPlayers(gdpUrl, referer) {
+  const players = [];
+  let body = "";
+  try {
+    body = fetchBody(gdpUrl, referer, 12000);
+  } catch (error) {
+    return players;
+  }
+  const nonceMatch = /'nonce'\s*:\s*'([^']+)'/.exec(body) || /"nonce"\s*:\s*"([^"]+)"/.exec(body);
+  if (!nonceMatch) return players;
+  const actionUrl = absoluteAny(gdpUrl, "/wp-admin/admin-ajax.php");
+  if (!actionUrl) return players;
+  const gdpDocument = host.parseHtml(body);
+  const hashes = collect(gdpDocument, (node) => hasClass(node, "kno76mmo") && attribute(node, "data-hash") !== "", 6)
+    .map((node) => attribute(node, "data-hash"));
+  for (const hash of hashes) {
+    try {
+      const response = host.fetch({
+        method: "POST",
+        url: actionUrl,
+        headers: {
+          "user-agent": UA,
+          "content-type": "application/x-www-form-urlencoded",
+          "accept": "application/json, text/javascript, */*; q=0.01",
+          "referer": gdpUrl,
+        },
+        body: "hash=" + encodeURIComponent(hash) + "&nonce=" + encodeURIComponent(nonceMatch[1]) + "&action=gdp_hash",
+        followRedirects: true,
+        anyStatus: true,
+        timeoutMs: 12000,
+        limit: 1 << 20,
+      });
+      const parsed = JSON.parse(String(response.body || ""));
+      const src = parsed && parsed.success !== false && parsed.data ? String(parsed.data.src || "") : "";
+      if (/^https?:\/\//i.test(src)) players.push(src);
+    } catch (error) {
+      /* try next server */
+    }
+  }
+  return players;
+}
+
+function megaPlayers(document, pageUrl) {
+  const frames = collect(document, (node) => node.tag === "iframe" && attribute(node, "src") !== "", 8)
+    .map((node) => absoluteAny(pageUrl, attribute(node, "src")))
+    .filter(Boolean);
+  let players = [];
+  for (const frame of frames) {
+    if (/\/gdp\/\d+\//.test(frame) || /action=gdp_iframe/.test(frame)) {
+      players = players.concat(gdpPlayers(frame, pageUrl));
+    } else {
+      players.push(frame);
+    }
+  }
+  const unique = [];
+  const seen = Object.create(null);
+  for (const player of players) {
+    if (seen[player]) continue;
+    seen[player] = true;
+    unique.push(player);
+  }
+  const dood = unique.filter(isDoodHost);
+  const voe = unique.filter((player) => /voe\.sx/i.test(player));
+  const rest = unique.filter((player) => !isDoodHost(player) && !/voe\.sx/i.test(player));
+  return dood.concat(voe, rest);
 }
 
 function readHealth() {
@@ -623,29 +747,64 @@ module.exports = {
       tags: [source.name],
       sourceUrl: text,
     };
-    const chapter = {
-      id: host.chapterId(text, "1"),
-      source: host.source,
-      title: title.slice(0, 128),
-      currentEpisode: 1,
-      pageUrl: text,
-      referer: source.home + "/",
-      videoUrl: text,
-    };
-    return { drama: drama, chapters: [chapter] };
+    const chapters = [];
+    if (source.id === "megapornfreehd") {
+      const players = megaPlayers(document, text);
+      for (let index = 0; index < players.length && index < 8; index++) {
+        const player = players[index];
+        let label = "";
+        try { label = String(host.parseUrl(player).hostname || "").replace(/^www\./i, ""); } catch (error) { /* ignore */ }
+        chapters.push({
+          id: host.chapterId(player, String(index + 1)),
+          source: host.source,
+          title: "线路 " + (index + 1) + (label ? " · " + label : ""),
+          currentEpisode: 1,
+          videoUrl: BROWSER_MARKER + player,
+          referer: source.home + "/",
+        });
+      }
+    }
+    if (!chapters.length) {
+      chapters.push({
+        id: host.chapterId(text, "1"),
+        source: host.source,
+        title: title.slice(0, 128),
+        currentEpisode: 1,
+        pageUrl: text,
+        referer: source.home + "/",
+        videoUrl: text,
+      });
+    }
+    drama.totalEpisode = chapters.length;
+    drama.episodeCount = chapters.length;
+    drama.remark = chapters.length + " 条线路";
+    return { drama: drama, chapters: chapters };
   },
 
   resolveMedia(task) {
     const taskObject = task && typeof task === "object" ? task : {};
     const chapter = taskObject.chapter || {};
-    const raw = String(chapter.pageUrl || chapter.videoUrl || chapter.src || taskObject.sourceId || taskObject.dramaId || "").trim();
-    const source = sourceOfUrl(raw);
+    const pageUrl = String(chapter.pageUrl || "").trim();
+    if (!pageUrl || pageUrl.indexOf(BROWSER_MARKER) === 0) {
+      throw new Error("MegaPornFreeHD 需要先在应用内浏览器完成验证，请重新播放");
+    }
+    let source = sourceOfUrl(pageUrl) || sourceOfUrl(String(chapter.referer || ""));
+    if (!source) {
+      const embedded = /https?:\/\/[^\s]+/.exec(String(taskObject.dramaId || ""));
+      source = embedded ? sourceOfUrl(embedded[0]) : null;
+    }
     if (!source) throw new Error("播放信息无效，请刷新详情后重试");
-    const response = host.fetchText({ url: raw, referer: source.home + "/" });
+    if (/\.(?:mp4|m3u8)(?:[/?#]|$)/i.test(pageUrl)) {
+      return host.prepareWebMedia({ url: pageUrl, referer: originOf(pageUrl) + "/" }, source.name);
+    }
+    const referer = originOf(pageUrl) + "/";
+    const response = host.fetchText({ url: pageUrl, referer: referer });
     const body = String(response.body || "");
-    const base = response.url || raw;
-    const media = extractMedia(source, body, base);
-    if (!media) throw new Error(source.name + " 详情页没有找到可直接播放的地址");
+    const base = response.url || pageUrl;
+    let media = "";
+    if (/\/pass_md5\//.test(body)) media = doodMedia(base, body);
+    if (!media) media = extractMedia(source, body, base);
+    if (!media) throw new Error(source.name + " 播放地址解析失败，请换一条线路");
     return host.prepareWebMedia({ url: media, referer: base }, source.name);
   },
 };
