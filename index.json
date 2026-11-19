@@ -19,16 +19,16 @@
     {
       "id": "gayfusion",
       "name": "GayFusion",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "六个男同影片站点的分站浏览：点一个标签只加载一个站点",
       "api": 1,
       "adult": true,
       "repo": "jqk4388/guoapp-modules-private",
-      "tag": "gayfusion-v0.2.0",
+      "tag": "gayfusion-v0.2.1",
       "path": "gayfusion",
       "sha256": {
-        "manifest.json": "f648edbbbbad9134c908f7de84613ef19fe4c31ae4632650c45e2f5a9276d33f",
-        "main.js": "57b1d28c883bfcfdda6e4fe393a6916992aa8bb5f2957b878a6df785edd81c71"
+        "manifest.json": "2f86e44af1d6a940766c8285a548db522037d3f4979e8e9b76e9a76ef04fbfff",
+        "main.js": "b58506ea4b31c6102edd981aeb595bbcea6b5bc44526708c00b9f15a46d05e99"
       }
     },
     {
