@@ -28,7 +28,17 @@
 
 ## 域名
 
-站点域名会换（多为随机 `.cc`）。模块默认用 `https://wlzetqez.cc`，也可以在应用里把这个站源的地址改成当前域名；清单开了 `allowAnyHost`，换域名不需要改模块。
+站点域名会换（多为随机 `.cc`）。模块不再写死站点域名：
+
+1. 先看应用里给这个站源手填的地址；
+2. 再看本地记住的域名（3 小时内有效）；
+3. 否则抓地址发布页 `https://z9d4qb8eu.cc/`（含 `www.`），从页面里的链接和文本提取候选域名；
+4. 依次用 `POST {域名}/api/ping` 探测，第一个正常响应的作为当前域名，并连同其他候选一起记到模块状态 `huangdou-site` 里；
+5. 接口请求失败时换下一个域名重试一次，全都不行才用清单里的 `baseUrl`。
+
+清单开了 `allowAnyHost`，候选域名不需要写进 `hosts`；写进 `hosts` 的域名会走 Chrome 指纹通道。
+
+`dev/publish.js` 用来人工核对发布页：抓一次发布页，列出候选域名和每个域名 `/api/ping` 的状态码与字节数（不打印页面内容）。
 
 ## 分类 ID
 
@@ -47,9 +57,10 @@
 
 ## 开发自测
 
-`dev/verify.js` 用 Node 加载 `main.js`，用 `crypto` 和 `curl` 模拟宿主 API，跑一遍分类、分页、搜索、详情、播放；`dev/inflate.test.js` 对照 Node 的 `zlib` 校验模块里的 gzip 解压实现。运行：
+`dev/verify.js` 用 Node 加载 `main.js`，用 `crypto` 和 `curl` 模拟宿主 API，跑一遍分类、分页、搜索、详情、播放；`dev/domain.test.js` 用假的发布页和假响应校验域名发现与切换（不联网）；`dev/inflate.test.js` 对照 Node 的 `zlib` 校验模块里的 gzip 解压实现。运行：
 
 ```powershell
+node dev/domain.test.js
 $env:HTTPS_PROXY='http://127.0.0.1:5252'; $env:HTTP_PROXY=$env:HTTPS_PROXY
 node dev/verify.js
 node dev/inflate.test.js

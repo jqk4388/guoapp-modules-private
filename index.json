@@ -27,8 +27,8 @@
       "tag": "gaypornhot-v0.1.4",
       "path": "gaypornhot",
       "sha256": {
-        "manifest.json": "c1ca0a5edebcbcbf79eae2452b6119f7186a965ec7c97276c7c71a86c08b14b2",
-        "main.js": "a6f1c344e6cf673b421735e811d2b50848c94e611093c566ea6d9bf4f9eb2738"
+        "manifest.json": "f1c92939630a2ae0c5519f1a9388f615768f6e73cdec0da50ddc724ac86bf579",
+        "main.js": "eb8a1318270b3ef0caad3fc9d0b8c5a99061c1927a6fae2353697beebac6faa4"
       }
     },
     {
@@ -42,23 +42,23 @@
       "tag": "horlover-v0.1.6",
       "path": "horlover",
       "sha256": {
-        "manifest.json": "b36a43af5f0afa99ba79fc1b2ca9be674dc00c7bddea40a216763acf8718e7b8",
-        "main.js": "d467ec3f6d87d9484ed549f2ea27716de56fdbcba98ae5a91ad689050898d28a"
+        "manifest.json": "3ca3daea19b05cb01f65f930055fabc26f3439d27b7c5952410b0c61a7c6d784",
+        "main.js": "d35a2d87674665599cb3cafee4e79ea7c8e4ccbfbcd4be7d35d255a64f445560"
       }
     },
     {
       "id": "huangdou",
       "name": "黄豆短剧",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "成人向竖屏短剧 · 分类 · 搜索 · 详情 · 直接取流",
       "api": 1,
       "adult": true,
       "repo": "jqk4388/guoapp-modules-private",
-      "tag": "huangdou-v0.1.1",
+      "tag": "huangdou-v0.1.2",
       "path": "huangdou",
       "sha256": {
-        "manifest.json": "ddcb445c263ceded085470a5fdbbf9e7a8f27b92dece2babb1768344de2a3fc8",
-        "main.js": "0dc0427e61a78ca0cde352836e250bc384f07ec26b77dbfb0df8d9268c6420af"
+        "manifest.json": "cb2a6447e6eab932451a450e2ba92b229c7e8e0384fd0d42915a9ca26bd6626d",
+        "main.js": "235cdf44d05d611cee9c28d393d6266193cc54206cd3bb449cd5a98c298cdd00"
       }
     },
     {
@@ -72,8 +72,8 @@
       "tag": "javboys-v0.1.4",
       "path": "javboys",
       "sha256": {
-        "manifest.json": "e3ca3209b2c657ba8284b5f2f97239d957109c9fb204be868b6548da31bc96b3",
-        "main.js": "d20befcac781b8df82e91ad345ed10267f14285ef031a067ccf52d7e28dbe9c2"
+        "manifest.json": "cb355a1f8d249117adfe5357cbce8db3329bf0059197435b1ff3c4aa0fba455d",
+        "main.js": "d6e0b52fdd0f776fc1052e4b0301193f02fc04cf788b4368b189effab50fb895"
       }
     },
     {
@@ -87,8 +87,8 @@
       "tag": "jise-v1.3.1",
       "path": "jise",
       "sha256": {
-        "manifest.json": "5a196040842cbda2cc59599ada0081de90bd5830c6c5f90d3b1ed6db5155302e",
-        "main.js": "6f4ec688de9c89c6b093c58206b2f1017b07787e7271bf9a8656c1d1ec7c6df6"
+        "manifest.json": "ef7a9a67698108742a8dd767601ec25947379911a54434f7fa4231bea4afb295",
+        "main.js": "249c747f0a4f31b6059f6cd96c1627fe15339b9fd129335d639b9d1ae79abaa7"
       }
     },
     {
@@ -117,8 +117,8 @@
       "tag": "netfuck-v0.1.4",
       "path": "netfuck",
       "sha256": {
-        "manifest.json": "e0539006a49ab6f5e9dfc05414f0ba7f7b9cd1538e97ec0d6975847829ffeafb",
-        "main.js": "c5074b0568ca5444c686fc62ed032857b8edb910fe72b9a9dff3bedbc8c11291"
+        "manifest.json": "519f7b4c83d432001ee956a77603855fce0f1c99da6539fb63188ed4ad4f3289",
+        "main.js": "78d9325672d8da5fa5180ae230516d69824bc21fa559b00eb03eaacf2686e310"
       }
     }
   ]

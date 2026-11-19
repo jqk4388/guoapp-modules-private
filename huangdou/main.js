@@ -1,9 +1,20 @@
 const platformKey = "7961beb44246e3012ce228d6b5ced05a";
 const channelName = "黄豆短剧";
-const seedBase = "https://wlzetqez.cc";
+const seedBases = ["https://wlzetqez.cc", "https://www.wlzetqez.cc"];
+const publishPages = ["https://z9d4qb8eu.cc/", "https://www.z9d4qb8eu.cc/"];
 const apiVersion = "1.0.0";
 const pageSize = 18;
 const stateName = "site";
+const baseCacheAge = 3 * 3600 * 1000;
+const userAgent =
+  "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
+const basePattern = /^https:\/\/[a-z0-9][a-z0-9.-]{2,80}$/i;
+const ignoredHostPattern =
+  /(google|gstatic|googletag|cloudflare|schema\.org|w3\.org|github|jsdelivr|cloudfront|facebook|twitter|telegram|^t\.me$|qq\.com|baidu|doubleclick|sentry|iconfont|alicdn|unpkg|cdnjs|jquery|youtube|instagram|tiktok|z9d4qb8eu|^api\d*\.|^static\.|^img\d*\.)/i;
+const tldPattern =
+  /^(?:cc|com|me|icu|ai|tv|net|dev|top|xyz|site|online|vip|club|app|co|io|info|pro|link|fun|live|shop|store|ren|wang|cn|hk|tw|us|uk|de|jp|ru|sbs|cyou|buzz|life|world|space|website|press|today|media)$/;
+const publishCandidateLimit = 12;
+const probeLimit = 6;
 
 const categories = [
   { id: "yuandou", name: "黄豆原创", cat: "246506" },
@@ -38,6 +49,187 @@ function writeState(state) {
   } catch (error) {
     host.log("黄豆短剧写入本地状态失败：" + error.message);
   }
+}
+
+function usableBase(base) {
+  return typeof base === "string" && basePattern.test(base);
+}
+
+function normalizedBase(base) {
+  const value = String(base || "").replace(/\/+$/, "");
+  return usableBase(value) ? value : "";
+}
+
+function addHost(bases, name) {
+  const text = String(name || "").toLowerCase().split(":")[0];
+  if (text === "" || text.length > 80 || ignoredHostPattern.test(text)) {
+    return;
+  }
+  const labels = text.split(".");
+  if (labels.length < 2 || !tldPattern.test(labels[labels.length - 1])) {
+    return;
+  }
+  for (const label of labels) {
+    if (label === "") {
+      return;
+    }
+  }
+  const base = "https://" + text;
+  if (bases.indexOf(base) < 0) {
+    bases.push(base);
+  }
+}
+
+function hostOf(address) {
+  const match = /^https?:\/\/([a-z0-9][a-z0-9.-]*)/i.exec(String(address || "").trim());
+  return match ? match[1] : "";
+}
+
+function anchorAddresses(node, out) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  if (node.tag === "a" && node.attrs && node.attrs.href) {
+    out.push(String(node.attrs.href));
+  }
+  if (node.tag === "meta" && node.attrs && node.attrs.content) {
+    out.push(String(node.attrs.content));
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      anchorAddresses(child, out);
+    }
+  }
+}
+
+function publishedBases() {
+  const bases = [];
+  for (const page of publishPages) {
+    let body = "";
+    try {
+      body = host.fetchText({ url: page, referer: page, userAgent }).body;
+    } catch (error) {
+      continue;
+    }
+    if (typeof body !== "string" || body === "") {
+      continue;
+    }
+    const links = [];
+    try {
+      anchorAddresses(host.parseHtml(body), links);
+    } catch (error) {
+      links.length = 0;
+    }
+    for (const link of links) {
+      addHost(bases, hostOf(link));
+      if (bases.length >= publishCandidateLimit) {
+        return bases;
+      }
+    }
+    let match;
+    const absolute = /https?:\/\/([a-z0-9][a-z0-9.-]*\.[a-z]{2,12})(?=[\/"'\s:?#<),]|$)/gi;
+    while ((match = absolute.exec(body)) !== null) {
+      addHost(bases, match[1]);
+      if (bases.length >= publishCandidateLimit) {
+        return bases;
+      }
+    }
+    const bare = /\b((?:[a-z0-9][a-z0-9-]{0,62}\.)+[a-z]{2,12})\b/gi;
+    while ((match = bare.exec(body)) !== null) {
+      addHost(bases, match[1]);
+      if (bases.length >= publishCandidateLimit) {
+        return bases;
+      }
+    }
+  }
+  return bases;
+}
+
+function probeBase(base) {
+  try {
+    const response = host.fetch({
+      method: "POST",
+      url: base + "/api/ping",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "ping=1",
+      timeoutMs: 8000,
+      limit: 256 * 1024,
+    });
+    if (response.status < 200 || response.status >= 400) {
+      return "";
+    }
+    const bytes = host.hexDecode(host.hexEncode(response.body === undefined ? "" : response.body));
+    if (bytes.length > 0 && bytes[0] === 0x3c) {
+      return "";
+    }
+    return base;
+  } catch (error) {
+    return "";
+  }
+}
+
+function preferredBase() {
+  let preferred = "";
+  try {
+    preferred = String(host.preferredSite() || "").trim();
+  } catch (error) {
+    preferred = "";
+  }
+  return normalizedBase(preferred);
+}
+
+function rememberBase(base, candidates) {
+  const state = readState();
+  const previous = normalizedBase(state.base);
+  const known = Array.isArray(state.bases) ? state.bases : [];
+  const bases = [base];
+  for (const entry of known.concat(candidates)) {
+    const value = normalizedBase(entry);
+    if (value !== "" && bases.indexOf(value) < 0) {
+      bases.push(value);
+    }
+  }
+  state.base = base;
+  state.baseCheckedAt = Date.now();
+  state.bases = bases.slice(0, publishCandidateLimit);
+  writeState(state);
+  if (previous !== "" && previous !== base) {
+    host.log("黄豆短剧切换线路：" + previous + " -> " + base);
+  }
+}
+
+function resolveBase(force) {
+  const state = readState();
+  const preferred = preferredBase();
+  if (preferred !== "") {
+    return preferred;
+  }
+  const cached = normalizedBase(state.base);
+  const checkedAt = parseInt(state.baseCheckedAt, 10) || 0;
+  if (!force && cached !== "" && Date.now() - checkedAt < baseCacheAge) {
+    return cached;
+  }
+  const candidates = [];
+  const push = (base) => {
+    const value = normalizedBase(base);
+    if (value !== "" && candidates.indexOf(value) < 0) {
+      candidates.push(value);
+    }
+  };
+  push(cached);
+  for (const base of publishedBases()) {
+    push(base);
+  }
+  for (const base of seedBases) {
+    push(base);
+  }
+  for (const base of candidates.slice(0, probeLimit)) {
+    if (probeBase(base) !== "") {
+      rememberBase(base, candidates);
+      return base;
+    }
+  }
+  return cached !== "" ? cached : seedBases[0];
 }
 
 function padHex(value) {
@@ -413,27 +605,8 @@ function hostPartOf(endpoint) {
   return String(endpoint).replace(/^https?:\/\//i, "");
 }
 
-function resolveBase() {
+function apiCallAt(base, path, data, options) {
   const state = readState();
-  let preferred = "";
-  try {
-    preferred = String(host.preferredSite() || "").trim();
-  } catch (error) {
-    preferred = "";
-  }
-  preferred = preferred.replace(/\/+$/, "");
-  if (/^https?:\/\/[a-z0-9][a-z0-9.-]{2,80}$/i.test(preferred)) {
-    return preferred;
-  }
-  if (typeof state.base === "string" && /^https?:\/\/[a-z0-9][a-z0-9.-]{2,80}$/i.test(state.base)) {
-    return state.base.replace(/\/+$/, "");
-  }
-  return seedBase;
-}
-
-function apiCall(path, data, options) {
-  const state = readState();
-  const base = resolveBase();
   const endpoint = base + "/api" + path;
   const requestId = uuidV4();
   const sessionId = typeof state.sessionId === "string" && state.sessionId.length >= 16 ? state.sessionId : "0123456789abcdef";
@@ -484,6 +657,23 @@ function apiCall(path, data, options) {
     throw failure;
   }
   return payload.data;
+}
+
+function apiCall(path, data, options) {
+  const base = resolveBase(false);
+  try {
+    return apiCallAt(base, path, data, options);
+  } catch (error) {
+    if (error && error.code !== undefined) {
+      throw error;
+    }
+    const next = resolveBase(true);
+    if (next === base) {
+      throw error;
+    }
+    host.log("黄豆短剧请求失败，换线路重试：" + error.message);
+    return apiCallAt(next, path, data, options);
+  }
 }
 
 function ensureSession() {
