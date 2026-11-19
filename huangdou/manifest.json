@@ -1,0 +1,23 @@
+{
+  "id": "huangdou",
+  "name": "黄豆短剧",
+  "version": "0.1.1",
+  "description": "成人向竖屏短剧 · 分类 · 搜索 · 详情 · 直接取流",
+  "runtime": "js",
+  "api": 1,
+  "adult": true,
+  "hosts": [
+    "wlzetqez.cc",
+    "www.wlzetqez.cc",
+    "z9d4qb8eu.cc",
+    "www.z9d4qb8eu.cc",
+    "newbofang02.hzlld56.com",
+    "d324ftvr28cuao.cloudfront.net",
+    "d12m928oe7qtlf.cloudfront.net"
+  ],
+  "capabilities": ["search"],
+  "baseUrl": "https://wlzetqez.cc",
+  "allowAnyHost": true,
+  "allowEmptyCatalog": true
+}
+

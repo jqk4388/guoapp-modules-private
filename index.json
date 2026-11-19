@@ -1,0 +1,125 @@
+{
+  "format": 1,
+  "modules": [
+    {
+      "id": "fullboys",
+      "name": "FullBoys",
+      "version": "0.1.0",
+      "description": "亚洲男同影片，标签分类、搜索与关注度排序",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "fullboys-v0.1.0",
+      "path": "fullboys",
+      "sha256": {
+        "manifest.json": "c10d1ddcd1da66e6c015bb17c556efc690a7622b8bf925c75a7aa5de4b122194",
+        "main.js": "1e2a2a5efcf6ab9f73ae196026d01797ae08a8dbb65e448c992feca2e28dd564"
+      }
+    },
+    {
+      "id": "gaypornhot",
+      "name": "GayPornHot",
+      "version": "0.1.4",
+      "description": "欧美男同影片与片商合集，支持分类浏览和搜索",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "gaypornhot-v0.1.4",
+      "path": "gaypornhot",
+      "sha256": {
+        "manifest.json": "f1c92939630a2ae0c5519f1a9388f615768f6e73cdec0da50ddc724ac86bf579",
+        "main.js": "eb8a1318270b3ef0caad3fc9d0b8c5a99061c1927a6fae2353697beebac6faa4"
+      }
+    },
+    {
+      "id": "horlover",
+      "name": "4horLover",
+      "version": "0.1.6",
+      "description": "日本男同影片合集，播放前需在应用内浏览器完成短链验证",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "horlover-v0.1.6",
+      "path": "horlover",
+      "sha256": {
+        "manifest.json": "3ca3daea19b05cb01f65f930055fabc26f3439d27b7c5952410b0c61a7c6d784",
+        "main.js": "d35a2d87674665599cb3cafee4e79ea7c8e4ccbfbcd4be7d35d255a64f445560"
+      }
+    },
+    {
+      "id": "huangdou",
+      "name": "黄豆短剧",
+      "version": "0.1.1",
+      "description": "成人向竖屏短剧 · 分类 · 搜索 · 详情 · 直接取流",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "huangdou-v0.1.1",
+      "path": "huangdou",
+      "sha256": {
+        "manifest.json": "7a2630259afdc1f55083c730ece68bb7f99f12509b63ea6c33b14319407227d0",
+        "main.js": "0dc0427e61a78ca0cde352836e250bc384f07ec26b77dbfb0df8d9268c6420af"
+      }
+    },
+    {
+      "id": "javboys",
+      "name": "JavBoys",
+      "version": "0.1.4",
+      "description": "日本 · 韩国 · 欧美男同影片，按分类浏览与搜索",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "javboys-v0.1.4",
+      "path": "javboys",
+      "sha256": {
+        "manifest.json": "cb355a1f8d249117adfe5357cbce8db3329bf0059197435b1ff3c4aa0fba455d",
+        "main.js": "d6e0b52fdd0f776fc1052e4b0301193f02fc04cf788b4368b189effab50fb895"
+      }
+    },
+    {
+      "id": "jise",
+      "name": "基色短剧",
+      "version": "1.3.1",
+      "description": "真人剧 · AI 剧 · 账号登录 · 自动签到 · 金币解锁",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "jise-v1.3.1",
+      "path": "jise",
+      "sha256": {
+        "manifest.json": "ef7a9a67698108742a8dd767601ec25947379911a54434f7fa4231bea4afb295",
+        "main.js": "249c747f0a4f31b6059f6cd96c1627fe15339b9fd129335d639b9d1ae79abaa7"
+      }
+    },
+    {
+      "id": "languo",
+      "name": "蓝果短剧",
+      "version": "1.2.0",
+      "description": "男同短剧 · AI 剧 · 男同 GV · 自动找最新域名",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "languo-v1.2.0",
+      "path": "languo",
+      "sha256": {
+        "manifest.json": "7eec7a4a83a526a396c93683f6971ff097c66a9a0de4cc0d107c94ad0392ed1b",
+        "main.js": "0dbe4c7a94eda8db043516d6dc469caef13ef0d3baf62032214259876771a09c"
+      }
+    },
+    {
+      "id": "netfuck",
+      "name": "Netfuck",
+      "version": "0.1.4",
+      "description": "日本 JAV 男同影片，含片商与系列分类，支持搜索",
+      "api": 1,
+      "adult": true,
+      "repo": "jqk4388/guoapp-modules-private",
+      "tag": "netfuck-v0.1.4",
+      "path": "netfuck",
+      "sha256": {
+        "manifest.json": "519f7b4c83d432001ee956a77603855fce0f1c99da6539fb63188ed4ad4f3289",
+        "main.js": "78d9325672d8da5fa5180ae230516d69824bc21fa559b00eb03eaacf2686e310"
+      }
+    }
+  ]
+}
