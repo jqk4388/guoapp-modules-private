@@ -19,4 +19,4 @@
 python .github/scripts/modules_release.py plan --only gayfusion
 ```
 
-生成 `dist/gayfusion-0.2.0.zip`，从应用「模块」页选择该 ZIP 安装。
+生成 `dist/gayfusion-0.2.1.zip`，从应用「模块」页选择该 ZIP 安装。

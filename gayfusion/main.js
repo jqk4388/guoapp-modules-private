@@ -52,7 +52,7 @@ const sources = [
     listUrl(page) { return homeList(this.home, "/", page, "page="); },
     searchUrl(query) { return this.home + "/search/" + encodeURIComponent(query) + "/"; },
     isCard(node) { return hasClass(node, "mtile-x7") || hasClass(node, "mtile"); },
-    linkPattern: /^\/videos\/\d+\//i,
+    linkPattern: /\/videos\/\d+\//i,
   },
   {
     id: "gaymaletube",
