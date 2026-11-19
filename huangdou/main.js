@@ -105,13 +105,17 @@ function anchorAddresses(node, out) {
 function publishedBases() {
   const bases = [];
   for (const page of publishPages) {
-    let body = "";
+    let response = null;
     try {
-      body = host.fetchText({ url: page, referer: page, userAgent }).body;
+      response = host.fetchText({ url: page, referer: page, userAgent });
     } catch (error) {
       continue;
     }
-    if (typeof body !== "string" || body === "") {
+    if (response && response.url) {
+      addHost(bases, hostOf(response.url));
+    }
+    const body = response && typeof response.body === "string" ? response.body : "";
+    if (body === "") {
       continue;
     }
     const links = [];

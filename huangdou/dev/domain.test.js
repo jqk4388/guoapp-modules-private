@@ -35,7 +35,7 @@ function build(pages, live) {
     fetchText: ({ url }) => {
       for (const page of pages) {
         if (url.indexOf(page.prefix) === 0) {
-          return { status: 200, url, body: page.body };
+          return { status: 200, url: page.landed || url, body: page.body };
         }
       }
       const error = new Error("unreachable " + url);
@@ -99,6 +99,14 @@ function expect(name, actual, wanted) {
 {
   const app = build([], []);
   expect("全部失效回退种子", app.api.resolveBase(false), "https://wlzetqez.cc");
+}
+
+{
+  const app = build(
+    [{ prefix: "https://z9d4qb8eu.cc", body: "<html></html>", landed: "https://jump777.cc/" }],
+    ["https://jump777.cc"],
+  );
+  expect("发布页跳转后的域名", app.api.resolveBase(false), "https://jump777.cc");
 }
 
 {

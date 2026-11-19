@@ -49,16 +49,16 @@
     {
       "id": "huangdou",
       "name": "黄豆短剧",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "description": "成人向竖屏短剧 · 分类 · 搜索 · 详情 · 直接取流",
       "api": 1,
       "adult": true,
       "repo": "jqk4388/guoapp-modules-private",
-      "tag": "huangdou-v0.1.2",
+      "tag": "huangdou-v0.1.3",
       "path": "huangdou",
       "sha256": {
-        "manifest.json": "cb2a6447e6eab932451a450e2ba92b229c7e8e0384fd0d42915a9ca26bd6626d",
-        "main.js": "235cdf44d05d611cee9c28d393d6266193cc54206cd3bb449cd5a98c298cdd00"
+        "manifest.json": "650cdd765bb5f86e351bc13a4af118751ea88174c113a6f4b44d653be4c18241",
+        "main.js": "7f189026448370563a1c467ed8f9e81e2308ca2ed9b5367c3aec42e6c7528017"
       }
     },
     {
