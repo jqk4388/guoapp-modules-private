@@ -234,7 +234,7 @@ function absoluteUrl(source, raw, base) {
 }
 
 function sourceItemId(source, url) {
-  return source.id + "|" + url;
+  return url;
 }
 
 function parseCards(source, body, category, categoryName) {
@@ -272,10 +272,11 @@ function parseCards(source, body, category, categoryName) {
     }
     const pageUrl = host.resolveUrl(source.home + "/", url);
     const tags = mergeTags([categoryName, title, href, card ? nodeText(card) : ""]);
+    const itemText = sourceItemId(source, pageUrl);
     const drama = {
-      id: host.dramaId(sourceItemId(source, pageUrl)),
+      id: host.dramaId(itemText),
       source: host.source,
-      sourceId: sourceItemId(source, pageUrl),
+      sourceId: itemText,
       title: title.slice(0, 512),
       name: title.slice(0, 512),
       cover,
@@ -339,38 +340,50 @@ module.exports = {
   },
   detail(sourceId) {
     const text = String(sourceId || "");
-    const separator = text.indexOf("|");
-    if (separator < 0) throw new Error("视频标识格式无效");
-    const source = sourceFor(text.slice(0, separator));
+    const parsed = host.parseUrl(text);
+    const hostname = String(parsed.hostname || "").toLowerCase();
+    let source = null;
+    for (const candidate of sources) {
+      if (candidate.suffixes.some((suffix) => hostname === suffix || hostname.endsWith("." + suffix))) {
+        source = candidate;
+        break;
+      }
+    }
     if (!source) throw new Error("视频来源未知");
-    const url = text.slice(separator + 1);
-    const parsed = host.parseUrl(url);
-    if (!source.suffixes.some((suffix) => parsed.hostname === suffix || String(parsed.hostname || "").endsWith("." + suffix))) throw new Error("视频地址无效");
+    const url = host.resolveUrl(source.home + "/", text);
     const response = host.fetchText({ url, referer: source.home + "/" });
     const document = host.parseHtml(response.body);
     const titleNode = first(document, (node) => node.tag === "title");
     const title = nodeText(titleNode) || source.name;
     const image = first(document, (node) => node.tag === "meta" && (attribute(node, "property") === "og:image" || attribute(node, "name") === "twitter:image"));
     const cover = image ? absoluteUrl(source, attribute(image, "content"), url) : "";
+    const itemText = url;
     const drama = {
-      id: host.dramaId(text), source: host.source, sourceId: text,
+      id: host.dramaId(itemText), source: host.source, sourceId: itemText,
       title: title.slice(0, 512), name: title.slice(0, 512), cover, coverUrl: cover,
       channelName: source.name, categoryName: "", sourceUrl: url,
     };
     const chapter = {
-      id: host.chapterId(text, "1"), source: host.source, title: title.slice(0, 128), currentEpisode: 1,
+      id: host.chapterId(itemText, "1"), source: host.source, title: title.slice(0, 128), currentEpisode: 1,
       pageUrl: url, referer: source.home + "/", videoUrl: url,
     };
     return { drama, chapters: [chapter] };
   },
   resolveMedia(task) {
     const taskObject = task && typeof task === "object" ? task : {};
-    const sourceId = String(taskObject.dramaId || taskObject.sourceId || taskObject.id || "");
-    const separator = sourceId.indexOf("|");
-    if (separator < 0) throw new Error("播放信息无效，请刷新详情后重试");
-    const source = sourceFor(sourceId.slice(0, separator));
-    const url = sourceId.slice(separator + 1);
-    if (!source || !absoluteUrl(source, url)) throw new Error("视频页面无效");
+    const chapter = taskObject.chapter || {};
+    const sourceId = String(chapter.videoUrl || chapter.pageUrl || chapter.src || taskObject.dramaId || taskObject.sourceId || taskObject.id || "");
+    const parsed = host.parseUrl(sourceId);
+    const hostname = String(parsed.hostname || "").toLowerCase();
+    let source = null;
+    for (const candidate of sources) {
+      if (candidate.suffixes.some((suffix) => hostname === suffix || hostname.endsWith("." + suffix))) {
+        source = candidate;
+        break;
+      }
+    }
+    if (!source) throw new Error("播放信息无效，请刷新详情后重试");
+    const url = host.resolveUrl(source.home + "/", sourceId);
     const response = host.fetchText({ url, referer: source.home + "/" });
     const text = String(response.body || "");
     const patterns = [
