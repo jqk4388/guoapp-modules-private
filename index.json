@@ -19,16 +19,16 @@
     {
       "id": "gaypornhot",
       "name": "GayPornHot",
-      "version": "0.1.4",
-      "description": "欧美男同影片与片商合集，支持分类浏览和搜索",
+      "version": "0.1.5",
+      "description": "欧美男同影片与片商合集，170+ 分类、排行榜与搜索",
       "api": 1,
       "adult": true,
       "repo": "jqk4388/guoapp-modules-private",
-      "tag": "gaypornhot-v0.1.4",
+      "tag": "gaypornhot-v0.1.5",
       "path": "gaypornhot",
       "sha256": {
-        "manifest.json": "c1ca0a5edebcbcbf79eae2452b6119f7186a965ec7c97276c7c71a86c08b14b2",
-        "main.js": "a6f1c344e6cf673b421735e811d2b50848c94e611093c566ea6d9bf4f9eb2738"
+        "manifest.json": "7c2b71f0c433b404a3d1a7b846b05416ea051814f57975d4be39a51377bdbfc6",
+        "main.js": "b755e2383fcf9d5cef2a959b8364d1413b4817135dc6b40bb5991e406e418ecd"
       }
     },
     {
