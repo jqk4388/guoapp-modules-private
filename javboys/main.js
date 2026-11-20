@@ -27,6 +27,18 @@ const declaredHosts = [
   "www.hypeboy.link",
   "voe.sx",
   "*.voe.sx",
+  "onecdns.com",
+  "*.onecdns.com",
+  "jgvcdn.com",
+  "*.jgvcdn.com",
+  "gaystream.link",
+  "*.gaystream.link",
+  "1069jp.com",
+  "*.1069jp.com",
+  "cdn-centaurus.com",
+  "*.cdn-centaurus.com",
+  "portfoliodigital.cyou",
+  "*.portfoliodigital.cyou",
 ];
 const categoriesList = [
   { id: "", name: "最新" },
@@ -475,8 +487,40 @@ function mediaIn(body) {
   return "";
 }
 
-function keyedMedia(body) {
+function configMedia(body, base) {
   const text = normalizeText(body);
+  const linksMatch = /\blinks\s*=\s*\{([^}]*)\}/i.exec(text);
+  const sourceMatch = /\bfile\s*:\s*((?:links\.[\w$]+\s*(?:\|\|\s*links\.[\w$]+\s*)*))/i.exec(text);
+  if (!linksMatch || !sourceMatch) {
+    return "";
+  }
+  const links = Object.create(null);
+  const propertyPattern = /["']?([\w$]+)["']?\s*:\s*["']([^"']+)["']/g;
+  let property;
+  while ((property = propertyPattern.exec(linksMatch[1])) !== null) {
+    links[property[1]] = property[2];
+  }
+  const referencePattern = /links\.([\w$]+)/g;
+  let reference;
+  while ((reference = referencePattern.exec(sourceMatch[1])) !== null) {
+    const raw = links[reference[1]];
+    if (!raw) {
+      continue;
+    }
+    const address = absoluteUrl(raw, base);
+    if (address !== "" && isMediaAddress(address) && declaredHost(address)) {
+      return address;
+    }
+  }
+  return "";
+}
+
+function keyedMedia(body, base) {
+  const text = normalizeText(body);
+  const configured = configMedia(text, base);
+  if (configured !== "") {
+    return configured;
+  }
   const patterns = [
     /video_url\s*:\s*['"]([^'"]+)['"]/i,
     /["']file["']\s*:\s*["']([^"']+)["']/i,
@@ -709,6 +753,38 @@ function packedMedia(body) {
   return keyedMedia(source);
 }
 
+function packedPlayerMedia(body, base) {
+  const packed = /eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\('([\s\S]*?)',([0-9]+),([0-9]+),'([\s\S]*?)'\.split\('\|'\)/;
+  const match = packed.exec(String(body));
+  if (!match) {
+    return "";
+  }
+  const radix = parseInt(match[2], 10) || 62;
+  const count = parseInt(match[3], 10) || 0;
+  const words = match[4].split("|");
+  const token = (value) => {
+    let text = "";
+    let number = value;
+    while (true) {
+      const digit = number % radix;
+      text = (digit > 35 ? String.fromCharCode(digit + 29) : digit.toString(36)) + text;
+      number = Math.floor(number / radix);
+      if (number <= 0) {
+        break;
+      }
+    }
+    return text;
+  };
+  let source = match[1];
+  for (let index = count - 1; index >= 0; index--) {
+    if (words[index]) {
+      const replacement = words[index];
+      source = source.replace(new RegExp("\\b" + token(index) + "\\b", "g"), () => replacement);
+    }
+  }
+  return configMedia(source, base) || keyedMedia(source, base);
+}
+
 function resolvePlayer(address, referer, depth) {
   if (address === "" || depth > 3) {
     return { media: "", referer: "", reason: "没有可用的播放器地址" };
@@ -737,7 +813,7 @@ function resolvePlayer(address, referer, depth) {
       return { media: "", referer: "", reason: name + " 的 pass_md5 没有取到直链" };
     }
   }
-  const media = keyedMedia(body) || packedMedia(body) || mediaIn(body);
+  const media = keyedMedia(body, address) || packedPlayerMedia(body, address) || packedMedia(body) || mediaIn(body);
   if (media !== "") {
     return { media, referer: address, reason: "" };
   }

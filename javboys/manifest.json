@@ -1,7 +1,7 @@
 {
   "id": "javboys",
   "name": "JavBoys",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "日本 · 韩国 · 欧美男同影片，按分类浏览与搜索",
   "runtime": "js",
   "api": 1,
@@ -46,7 +46,19 @@
     "www.hypeboy.link",
     "*.hypeboy.link",
     "voe.sx",
-    "*.voe.sx"
+    "*.voe.sx",
+    "onecdns.com",
+    "*.onecdns.com",
+    "jgvcdn.com",
+    "*.jgvcdn.com",
+    "gaystream.link",
+    "*.gaystream.link",
+    "1069jp.com",
+    "*.1069jp.com",
+    "cdn-centaurus.com",
+    "*.cdn-centaurus.com",
+    "portfoliodigital.cyou",
+    "*.portfoliodigital.cyou"
   ],
   "capabilities": [
     "search"

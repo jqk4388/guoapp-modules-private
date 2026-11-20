@@ -13,7 +13,7 @@
 ## 说明
 
 - 目录和搜索走站点的 WordPress 列表页（`/` 首页、`/category/<分类>/`、`/?s=<关键词>`），分页形如 `/category/movies/page/2/`。页面没有翻页链接时按满页推定还有下一页，并用 `?paged=N` 兜底；同一页内容重复就停，不会一直加载。
-- 详情页的播放器是第三方嵌入页（`gayporntube.net/embed/<id>`），也可能是页面里的 `<video>` 直链。模块先取播放器地址，再在播放器页里解出 `get_file` 的 mp4（也认 `file`、`sources`、`.m3u8`）；播放器换到未声明的域名时，报错会直接写出那个域名。
+- 详情页可能使用 `gayporntube`、1069、JGV、OneCDNS、GayStream 等第三方播放器，也可能是页面里的 `<video>` 直链。模块读取播放器配置中的 `file`、`sources`、HLS 候选地址及旧式 packer 配置，并为相对 HLS 路径按播放器域名补全；播放器换到未声明的域名时，报错会直接写出那个域名。
 - 嵌入页对 `Referer` 有白名单：只能是 javboys、gaypornhot、netfuck 这几个站域，所以请求时固定带本站 `Referer`；播放直链再用嵌入站自己的 `Referer` 请求。
 - 列表页和嵌入页都要过站点的 TLS 指纹检查（普通 HTTP 客户端握手阶段就被重置）。清单开 `browserFingerprint` 后，`hosts` 里声明的域名都走应用的 Chrome 指纹通道；嵌入域名在三个站源里是共用的，放 `hosts` 不放 `aliases`，标识不冲突，三个可以同时安装（需要 2.0.3+115 及以后的应用）。
 - 直链带 `v-acctoken` 时效签名，每次播放都重新解析，不缓存播放地址；封面和标题可以缓存。
