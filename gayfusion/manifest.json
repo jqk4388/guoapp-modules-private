@@ -1,7 +1,7 @@
 {
   "id": "gayfusion",
   "name": "GayFusion",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "六个男同影片站点的分站浏览：点一个标签只加载一个站点",
   "runtime": "js",
   "api": 1,

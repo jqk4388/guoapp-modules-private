@@ -3,6 +3,8 @@ const HEALTH_KEY = "site-health";
 const HEALTH_TTL = 30 * 60 * 1000;
 const DEFAULT_KEY = "default-source";
 const DEFAULT_TTL = 10 * 60 * 1000;
+const COVER_CACHE_PREFIX = "cover:";
+const COVER_TTL = 24 * 60 * 60 * 1000;
 const LIST_TIMEOUT = 12000;
 const DEFAULT_TIMEOUT = 6000;
 const SEARCH_TIMEOUT = 8000;
@@ -254,6 +256,25 @@ function cardLink(source, card) {
   return links[0];
 }
 
+function coverCacheKey(sourceId) {
+  return COVER_CACHE_PREFIX + sourceId;
+}
+
+function rememberCover(sourceId, cover) {
+  if (!sourceId || !cover) return;
+  try { host.cacheSet(coverCacheKey(sourceId), cover, COVER_TTL); } catch (error) { /* ignore */ }
+}
+
+function cachedCover(sourceId) {
+  if (!sourceId) return "";
+  try {
+    const value = host.cacheGet(coverCacheKey(sourceId));
+    return typeof value === "string" ? value : "";
+  } catch (error) {
+    return "";
+  }
+}
+
 function itemFromCard(source, card, base) {
   const link = cardLink(source, card);
   if (!link) return null;
@@ -262,6 +283,7 @@ function itemFromCard(source, card, base) {
   const title = itemTitle(source, card, link);
   if (!title) return null;
   const cover = coverOf(card, base);
+  rememberCover(url, cover);
   const durationMatch = clean(nodeText(card)).match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/);
   const drama = {
     id: host.dramaId(url),
@@ -612,27 +634,6 @@ function detailTitle(source, document) {
   return title.slice(0, 512) || source.name;
 }
 
-function detailCover(document, base) {
-  const meta = first(document, (node) => node.tag === "meta" && (attribute(node, "property") === "og:image" || attribute(node, "name") === "twitter:image"));
-  if (meta) {
-    const address = absoluteAny(base, attribute(meta, "content"));
-    if (address) return address;
-  }
-  const images = collect(document, (node) => node.tag === "img", 40);
-  let fallback = "";
-  for (const image of images) {
-    const raw = attribute(image, "data-src") || attribute(image, "data-original") || attribute(image, "src");
-    if (!raw || /logo|icon|flag|avatar|sprite|placeholder/i.test(raw)) continue;
-    const address = absoluteAny(base, raw);
-    if (!address) continue;
-    const width = parseInt(attribute(image, "width") || "0", 10);
-    const style = attribute(image, "class").toLowerCase();
-    if (attribute(image, "data-src") !== "" || width >= 300 || /poster|cover|thumb|video|movie/i.test(style)) return address;
-    if (!fallback) fallback = address;
-  }
-  return fallback;
-}
-
 function decodeEscapes(value) {
   return String(value === undefined || value === null ? "" : value)
     .replace(/\\\//g, "/")
@@ -733,7 +734,7 @@ module.exports = {
     const document = host.parseHtml(body);
     const url = response.url || text;
     const title = detailTitle(source, document);
-    const cover = detailCover(document, url);
+    const cover = cachedCover(text);
     const drama = {
       id: host.dramaId(text),
       source: host.source,
