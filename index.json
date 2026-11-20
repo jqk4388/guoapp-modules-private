@@ -79,16 +79,16 @@
     {
       "id": "javboys",
       "name": "JavBoys",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "description": "日本 · 韩国 · 欧美男同影片，按分类浏览与搜索",
       "api": 1,
       "adult": true,
       "repo": "jqk4388/guoapp-modules-private",
-      "tag": "javboys-v0.1.4",
+      "tag": "javboys-v0.1.5",
       "path": "javboys",
       "sha256": {
-        "manifest.json": "e3ca3209b2c657ba8284b5f2f97239d957109c9fb204be868b6548da31bc96b3",
-        "main.js": "d20befcac781b8df82e91ad345ed10267f14285ef031a067ccf52d7e28dbe9c2"
+        "manifest.json": "9569acd9c92d3b09f68f9f5ff9a80c13c39501479cb696da6aed4d97d9d267b4",
+        "main.js": "212b1e21dbac82d6dc66d63991120d09070fade46ab021ea3f627f99cee3a2d1"
       }
     },
     {
